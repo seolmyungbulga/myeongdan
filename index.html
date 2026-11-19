@@ -123,7 +123,9 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
   <div class="card"><h3>사진 읽는 방법</h3>
     <div class="chips"><button class="chip" data-ocr="local">폰 안에서 읽기</button><button class="chip" data-ocr="ai">구글 AI로 읽기</button></div>
     <div class="muted" id="ocrHelp"></div>
-    <div id="aiBox"><label>구글 AI 키 (이 폰에만 저장)</label><input id="cfKey" type="password" autocomplete="off"><label>모델</label><input id="cfModel"></div>
+    <div id="aiBox"><label>이용 코드 (판매자에게 받은 코드)</label><input id="cfCode" autocomplete="off" autocapitalize="characters" placeholder="예) MD-ABCD-1234">
+      <div class="muted" id="codeInfo"></div>
+      <details style="margin-top:8px"><summary class="muted">고급: 내 구글 AI 키 직접 쓰기</summary><label>구글 AI 키 (이 폰에만 저장)</label><input id="cfKey" type="password" autocomplete="off"><label>모델</label><input id="cfModel"></details></div>
   </div>
   <button class="big g" id="btnSaveCfg">설정 저장</button>
   <div class="card"><h3>백업</h3>
@@ -133,7 +135,7 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
     <input type="file" id="fRestore" accept=".json,application/json" class="hide">
     <button class="big w" id="btnWipe" style="color:var(--rd)">주문 기록 모두 지우기</button>
   </div>
-  <div class="muted" style="text-align:center">찍으면 명단 시험판 0.4</div>
+  <div class="muted" style="text-align:center">찍으면 명단 시험판 0.5</div>
 </section>
 </main>
 <nav>
@@ -148,8 +150,10 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
 let orders=LS.get('gyul_orders',[]);
-let cfg=Object.assign({name:'',tel:'',addr:'',item:'감귤',sizes:'5kg,10kg',ocr:'local',key:'',model:'gemini-3.1-flash-lite',mode:'order'},LS.get('gyul_cfg',{}));
+let cfg=Object.assign({name:'',tel:'',addr:'',item:'감귤',sizes:'5kg,10kg',ocr:'local',key:'',model:'gemini-3.1-flash-lite',mode:'order',code:''},LS.get('gyul_cfg',{}));
 let pending=[], filter='all', outPaidOnly=true;
+const RELAY='https://script.google.com/macros/s/AKfycbxiM2DuLPqD1JszhFVsZk4_j0LSWAO1BZUq3RNwe-RIPr3QAvcD2Hqm4NC4rl9qd5pm/exec';
+async function relay(o){const r=await fetch(RELAY,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(o)});return r.json()}
 const save=()=>{LS.set('gyul_orders',orders);refresh()};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
@@ -242,9 +246,10 @@ async function ocrLocal(img){
   return data.text;
 }
 async function ocrAI(img){
-  if(!cfg.key){busy(false);show('set');throw new Error('설정에서 구글 AI 키를 먼저 넣어 주세요');}
-  busy(true,'구글 AI가 읽는 중입니다','10초쯤 걸립니다');
+  if(!cfg.key&&!cfg.code){busy(false);show('set');throw new Error('설정에서 이용 코드를 먼저 넣어 주세요');}
+  busy(true,'구글 AI가 읽는 중입니다','보통 10초, 길면 30초쯤 걸립니다');
   const b64=toCanvas(img,1600,false).toDataURL('image/jpeg',.85).split(',')[1];
+  if(cfg.code&&!cfg.key){const j=await relay({code:cfg.code,mode:cfg.mode,image:b64});if(!j.ok)throw new Error(j.error||'읽지 못했습니다');const arr=JSON.parse(String(j.text).replace(/^```json|```$/g,''));lastRemain=j.remaining;return {raw:j.text,list:arr.map(mapAI)}}
   const prompt=cfg.mode==='contact'?'이 사진은 손으로 적거나 인쇄한 사람 명단·연락처 메모입니다. 사람마다 이름, 전화번호, 주소, 기타 메모를 뽑아 주세요. 제목이나 날짜 줄은 사람으로 넣지 마세요. 우편물·택배 송장·주소 라벨처럼 보내는 사람과 받는 사람이 함께 적혀 있으면 받는 사람(받는 분, 수취인)만 한 건으로 뽑고, 보내는 사람은 memo에 \"보내는 분: 이름\"으로만 적으세요. 우편번호는 주소 맨 앞에 넣지 말고 빼세요. 읽기 어려운 글자는 추측하지 말고 그 칸에 ? 를 넣으세요. JSON 배열로만 답하세요: [{"name":"","phone":"","addr":"","size":"","qty":1,"memo":""}]':'이 사진은 한국 농가가 택배 주문을 손으로 적어 둔 노트나 메모입니다. 주문 한 건마다 받는 분 이름, 전화번호, 주소, 상자 크기(예: 5kg, 10kg), 상자 수, 기타 메모(보내는 분, 입금 여부 등)를 뽑아 주세요. 우편물·택배 송장·주소 라벨처럼 보내는 사람과 받는 사람이 함께 적혀 있으면 받는 사람(받는 분, 수취인)만 한 건으로 뽑고, 보내는 사람은 memo에 \"보내는 분: 이름\"으로만 적으세요. 우편번호는 주소 맨 앞에 넣지 말고 빼세요. 읽기 어려운 글자는 추측하지 말고 그 칸에 ? 를 넣으세요. 줄을 그어 지운 주문은 빼세요. JSON 배열로만 답하세요: [{"name":"","phone":"","addr":"","size":"","qty":1,"memo":""}]';
   const body=JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],generationConfig:{responseMimeType:'application/json',temperature:0}});
   let r,j;
@@ -253,8 +258,10 @@ async function ocrAI(img){
   if(!r.ok)throw new Error('구글 AI 오류: '+(j.error&&j.error.message||r.status));
   const t=j.candidates[0].content.parts.map(p=>p.text||'').join('');
   const arr=JSON.parse(t.replace(/^```json|```$/g,''));
-  return {raw:t,list:arr.map(o=>({id:uid(),name:o.name||'',phone:o.phone||'',addr:o.addr||'',size:(()=>{const s=String(o.size||'').replace(/\s/g,'').replace(/키로|킬로|㎏/,'kg');return /^\d+(\.\d+)?kg$/i.test(s)?s.toLowerCase():''})(),qty:+o.qty||1,memo:o.memo||''}))};
+  return {raw:t,list:arr.map(mapAI)};
 }
+let lastRemain=null;
+function mapAI(o){return ({id:uid(),name:o.name||'',phone:o.phone||'',addr:o.addr||'',size:(()=>{const s=String(o.size||'').replace(/\s/g,'').replace(/키로|킬로|㎏/,'kg');return /^\d+(\.\d+)?kg$/i.test(s)?s.toLowerCase():''})(),qty:+o.qty||1,memo:o.memo||''})}
 let lastImg=null;
 async function handlePhoto(file,force){
   if(!file&&!force)return;
@@ -267,11 +274,11 @@ async function handlePhoto(file,force){
     else{raw=await ocrLocal(img);list=parseText(raw)}
     busy(false);
     $('#rawTxt').textContent=raw;$('#rawBox').classList.remove('hide');
-    startReview(list,useAI?'구글 AI가 읽었습니다.':'폰 안에서 읽었습니다. 틀린 곳이 많으면 아래 「구글 AI로 다시 읽기」를 누르세요.');
+    startReview(list,useAI?('구글 AI가 읽었습니다.'+(lastRemain!=null&&cfg.code&&!cfg.key?' (이번 달 남은 사진 '+lastRemain+'장)':'')):'폰 안에서 읽었습니다. 틀린 곳이 많으면 아래 「구글 AI로 다시 읽기」를 누르세요.');
     $('#btnAiRetry').classList.toggle('hide',useAI);
   }catch(e){busy(false);alert(e.message||e)}
 }
-$('#btnAiRetry').onclick=()=>{if(!cfg.key){alert('설정에서 구글 AI 키를 먼저 넣어 주세요');show('set');return}if(lastImg)handlePhoto(null,'ai')};
+$('#btnAiRetry').onclick=()=>{if(!cfg.key&&!cfg.code){alert('설정에서 이용 코드를 먼저 넣어 주세요');show('set');return}if(lastImg)handlePhoto(null,'ai')};
 $('#btnCam').onclick=()=>$('#fCam').click();
 $('#btnAlbum').onclick=()=>$('#fAlbum').click();
 $('#fCam').onchange=e=>{handlePhoto(e.target.files[0]);e.target.value=''};
@@ -307,7 +314,7 @@ $('#dContact').onclick=()=>saveContacts(reviewList());
 /* ---------- 확인 화면 ---------- */
 function startReview(list,msg){
   pending=list;
-  if(!list.length){if(lastImg&&cfg.key&&cfg.ocr!=='ai'&&confirm('폰 안에서는 읽지 못했습니다. 구글 AI로 다시 읽을까요?')){handlePhoto(null,'ai');return}alert('찾지 못했습니다. 사진을 더 밝고 반듯하게 찍거나, 손으로 써 주세요.');return}
+  if(!list.length){if(lastImg&&(cfg.key||cfg.code)&&cfg.ocr!=='ai'&&confirm('폰 안에서는 읽지 못했습니다. 구글 AI로 다시 읽을까요?')){handlePhoto(null,'ai');return}alert('찾지 못했습니다. 사진을 더 밝고 반듯하게 찍거나, 손으로 써 주세요.');return}
   $('#reviewMsg').textContent=msg+' 모두 '+list.length+'건입니다. 빨간 칸은 꼭 확인해 주세요.';
   $('#reviewBox').classList.remove('hide');$('#pasteBox').classList.add('hide');$('#destBox').classList.remove('hide');$('#btnSaveAll').textContent=cfg.mode==='order'?'모두 주문 명단에 넣기':'앱 명단에도 넣기';
   renderReview();$('#reviewBox').scrollIntoView({behavior:'smooth'});
@@ -396,11 +403,12 @@ $('#btnVcfOut').onclick=()=>{const L=outList();if(!L.length)return toast('저장
 $('#btnMarkSent').onclick=()=>{const L=outList();if(!L.length)return toast('표시할 주문이 없습니다');if(!confirm(L.length+'건을 「발송함」으로 표시할까요?'))return;L.forEach(o=>o.sent=true);save();renderOut();toast(L.length+'건을 발송함으로 표시했습니다')};
 
 /* ---------- 설정 ---------- */
-function renderSet(){$('#cfName').value=cfg.name;$('#cfTel').value=cfg.tel;$('#cfAddr').value=cfg.addr;$('#cfItem').value=cfg.item;$('#cfSizes').value=cfg.sizes;$('#cfKey').value=cfg.key;$('#cfModel').value=cfg.model;ocrUI()}
+function renderSet(){setTimeout(checkCode,0);$('#cfName').value=cfg.name;$('#cfTel').value=cfg.tel;$('#cfAddr').value=cfg.addr;$('#cfItem').value=cfg.item;$('#cfSizes').value=cfg.sizes;$('#cfKey').value=cfg.key;$('#cfCode').value=cfg.code||'';$('#cfModel').value=cfg.model;ocrUI()}
 function ocrUI(){$$('[data-ocr]').forEach(c=>c.classList.toggle('on',c.dataset.ocr===cfg.ocr));$('#aiBox').classList.toggle('hide',cfg.ocr!=='ai');
-  $('#ocrHelp').textContent=cfg.ocr==='ai'?'손글씨를 훨씬 잘 읽습니다. 대신 찍은 사진이 구글로 보내져 읽힌 뒤 돌아옵니다. 둘리나 다른 누구에게도 저장되지 않지만, 사진이 폰 밖으로 나가는 방법입니다.':'사진이 폰 밖으로 나가지 않습니다. 인쇄한 글씨는 잘 읽지만 손글씨는 틀리는 곳이 많습니다.'}
+  $('#ocrHelp').textContent=cfg.ocr==='ai'?'손글씨와 우편물을 훨씬 정확하게 읽습니다. 찍은 사진은 읽는 데만 쓰이고 어디에도 저장되지 않습니다. 이용 코드가 필요합니다.':'사진이 폰 밖으로 나가지 않습니다. 인쇄한 글씨는 잘 읽지만 손글씨는 틀리는 곳이 많습니다.'}
 $$('[data-ocr]').forEach(c=>c.onclick=()=>{cfg.ocr=c.dataset.ocr;ocrUI()});
-$('#btnSaveCfg').onclick=()=>{cfg.name=$('#cfName').value.trim();cfg.tel=$('#cfTel').value.trim();cfg.addr=$('#cfAddr').value.trim();cfg.item=$('#cfItem').value.trim()||'감귤';cfg.sizes=$('#cfSizes').value.trim()||'5kg,10kg';const hadKey=!!cfg.key;cfg.key=$('#cfKey').value.trim();if(cfg.key&&!hadKey)cfg.ocr='ai';if(!cfg.key)cfg.ocr='local';cfg.model=$('#cfModel').value.trim()||'gemini-3.1-flash-lite';LS.set('gyul_cfg',cfg);ocrUI();toast(cfg.ocr==='ai'?'저장했습니다. 이제 사진은 구글 AI로 읽습니다':'설정을 저장했습니다')};
+$('#btnSaveCfg').onclick=()=>{cfg.name=$('#cfName').value.trim();cfg.tel=$('#cfTel').value.trim();cfg.addr=$('#cfAddr').value.trim();cfg.item=$('#cfItem').value.trim()||'감귤';cfg.sizes=$('#cfSizes').value.trim()||'5kg,10kg';const hadAI=!!(cfg.key||cfg.code);cfg.key=$('#cfKey').value.trim();cfg.code=$('#cfCode').value.trim().toUpperCase();$('#cfCode').value=cfg.code;if((cfg.key||cfg.code)&&!hadAI)cfg.ocr='ai';if(!cfg.key&&!cfg.code)cfg.ocr='local';cfg.model=$('#cfModel').value.trim()||'gemini-3.1-flash-lite';LS.set('gyul_cfg',cfg);ocrUI();toast(cfg.ocr==='ai'?'저장했습니다. 이제 사진은 구글 AI로 읽습니다':'설정을 저장했습니다');checkCode()}
+async function checkCode(){const el=$('#codeInfo');if(!cfg.code){el.textContent='';return}el.textContent='이용 코드 확인 중...';try{const j=await relay({code:cfg.code,action:'check'});el.textContent=j.ok?('사용 가능 · 이번 달 남은 사진 '+j.remaining+'장 (한도 '+j.limit+'장)'):('확인 실패: '+j.error);el.style.color=j.ok?'#2e7d32':'#c62828'}catch(e){el.textContent='인터넷 연결을 확인해 주세요';el.style.color='#c62828'}};
 $('#btnBackup').onclick=()=>download(new Blob([JSON.stringify({v:1,orders,cfg:Object.assign({},cfg,{key:''})},null,1)],{type:'application/json'}),'귤주문장_백업_'+today()+'.json');
 $('#btnRestore').onclick=()=>$('#fRestore').click();
 $('#fRestore').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.orders))throw 0;if(!confirm('백업의 '+j.orders.length+'건으로 바꿀까요? 지금 기록은 사라집니다.'))return;orders=j.orders;if(j.cfg)cfg=Object.assign(cfg,j.cfg,{key:cfg.key});LS.set('gyul_cfg',cfg);save();renderSet();toast('불러왔습니다')}catch(x){alert('백업 파일이 아닙니다')}e.target.value=''};
