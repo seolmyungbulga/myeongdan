@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f08a00">
+<title>찍으면 명단</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--or:#f08a00;--or2:#fff3e0;--gr:#2e7d32;--rd:#c62828;--tx:#222;--sub:#666;--ln:#e3e3e3}
+*{box-sizing:border-box}
+html,body{margin:0;background:#faf8f5;color:var(--tx);font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-serif;font-size:19px;line-height:1.5}
+header{position:sticky;top:0;z-index:5;background:var(--or);color:#fff;padding:12px 16px;font-size:22px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+header small{font-size:15px;font-weight:600;opacity:.95}
+main{padding:14px 14px 110px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#fff;border-top:1px solid var(--ln);z-index:6;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:12px 0 14px;font-size:17px;font-weight:700;color:var(--sub)}
+nav button.on{color:var(--or);border-top:4px solid var(--or)}
+.big{display:block;width:100%;border:0;border-radius:14px;padding:18px;font-size:21px;font-weight:800;margin:10px 0;color:#fff;background:var(--or)}
+.big.g{background:var(--gr)}.big.w{background:#fff;color:var(--tx);border:2px solid var(--ln)}
+.big:active{opacity:.8}
+.card{background:#fff;border:1px solid var(--ln);border-radius:14px;padding:14px;margin:12px 0}
+.card h3{margin:0 0 6px;font-size:21px}
+.muted{color:var(--sub);font-size:16px}
+label{display:block;font-size:16px;color:var(--sub);margin-top:8px}
+input,textarea,select{width:100%;font-size:19px;padding:10px;border:1px solid #ccc;border-radius:10px;font-family:inherit;background:#fff}
+textarea{min-height:150px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.chip{border:2px solid var(--ln);background:#fff;border-radius:20px;padding:6px 14px;font-size:17px;font-weight:700}
+.chip.on{border-color:var(--or);background:var(--or2);color:#a35c00}
+.tag{display:inline-block;border-radius:8px;padding:2px 10px;font-size:15px;font-weight:800;margin-right:6px}
+.t-ok{background:#e8f5e9;color:var(--gr)}.t-no{background:#ffebee;color:var(--rd)}
+.btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.btns button{flex:1;min-width:30%;border:2px solid var(--ln);background:#fff;border-radius:10px;padding:10px 6px;font-size:17px;font-weight:700}
+.btns button.on{background:var(--gr);border-color:var(--gr);color:#fff}
+.btns button.del{color:var(--rd)}
+.warn{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:10px;font-size:16px;margin:8px 0}
+.err{border-color:var(--rd)!important;background:#fff5f5}
+#photo{max-width:100%;border-radius:10px;margin-top:8px}
+.sum{display:flex;gap:8px;margin:6px 0 4px}.sum div{flex:1;background:#fff;border:1px solid var(--ln);border-radius:12px;padding:8px;text-align:center}
+.sum b{display:block;font-size:24px;color:var(--or)}
+#busy{position:fixed;inset:0;background:rgba(0,0,0,.55);color:#fff;display:none;align-items:center;justify-content:center;flex-direction:column;z-index:20;font-size:21px;font-weight:700;text-align:center;padding:20px}
+#toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#333;color:#fff;padding:12px 18px;border-radius:12px;font-size:18px;display:none;z-index:21;max-width:90%}
+a.tel{color:#1565c0;font-weight:700;text-decoration:none}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header><span id="hdrTitle">찍으면 명단</span> <small id="hdrsum"></small></header>
+<main>
+<!-- 주문받기 -->
+<section id="v-in">
+  <div class="chips" id="modeBox" style="margin-top:0"><button class="chip" data-mode="order" style="flex:1;font-size:19px;padding:10px">택배 주문</button><button class="chip" data-mode="contact" style="flex:1;font-size:19px;padding:10px">연락처 정리</button></div>
+  <div class="muted" id="modeHelp" style="margin-bottom:4px"></div>
+  <button class="big" id="btnCam">노트 사진 찍기</button>
+  <button class="big w" id="btnAlbum">앨범에서 사진 고르기</button>
+  <input type="file" id="fCam" accept="image/*" capture="environment" class="hide">
+  <input type="file" id="fAlbum" accept="image/*" class="hide">
+  <button class="big w" id="btnPaste">카톡·문자 주문 글 붙여넣기</button>
+  <button class="big w" id="btnManual">손으로 한 건 쓰기</button>
+  <div id="pasteBox" class="card hide">
+    <h3>주문 글 붙여넣기</h3>
+    <div class="muted">카톡이나 문자에서 주문 글을 길게 눌러 복사한 뒤 아래 칸을 길게 눌러 붙여넣으세요. 여러 건을 한꺼번에 넣어도 됩니다.</div>
+    <textarea id="pasteTxt" placeholder="예) 김영희 010-1234-5678 서울시 강서구 화곡로 123 101동 202호 10kg 2박스"></textarea>
+    <button class="big" id="btnParse">정리하기</button>
+  </div>
+  <div id="reviewBox" class="hide">
+    <div class="card"><h3>읽은 결과를 확인해 주세요</h3>
+      <div class="muted" id="reviewMsg"></div>
+      <img id="photo" class="hide" alt="찍은 사진">
+      <details id="rawBox" class="hide"><summary class="muted">읽어 낸 글자 그대로 보기</summary><pre id="rawTxt" style="white-space:pre-wrap;font-size:15px"></pre></details>
+    </div>
+    <div id="reviewList"></div>
+    <div id="destBox" class="card hide"><h3>어디에 저장할까요?</h3><div class="muted">여러 개를 차례로 눌러도 됩니다.</div>
+      <button class="big" id="dKakao">카톡으로 보내기</button>
+      <button class="big w" id="dMemo">폰 메모에 저장</button>
+      <button class="big w" id="dContact">주소록에 저장</button>
+    </div>
+    <button class="big g" id="btnSaveAll">모두 명단에 넣기</button>
+    <button class="big w" id="btnCancel">취소</button>
+  </div>
+</section>
+
+<!-- 명단 -->
+<section id="v-list" class="hide">
+  <div class="sum"><div>주문<b id="sOrd">0</b></div><div>상자<b id="sBox">0</b></div><div>입금 전<b id="sUnpaid">0</b></div><div>발송 전<b id="sUnsent">0</b></div></div>
+  <input id="q" placeholder="이름·전화·주소로 찾기">
+  <div class="chips" id="flt">
+    <button class="chip on" data-f="all">전체</button><button class="chip" data-f="unpaid">입금 전</button><button class="chip" data-f="unsent">발송 전</button><button class="chip" data-f="sent">발송 끝</button>
+  </div>
+  <div id="list"></div>
+</section>
+
+<!-- 보내기 -->
+<section id="v-out" class="hide">
+  <div class="card"><h3>영업소에 넘길 명단</h3>
+    <div class="muted">아직 발송 안 한 주문만 모읍니다.</div>
+    <div class="chips"><button class="chip on" id="oPaidOnly">입금된 것만</button><button class="chip" id="oAll">입금 안 된 것도 포함</button></div>
+    <div id="outInfo" style="font-size:20px;font-weight:800;margin:8px 0"></div>
+  </div>
+  <button class="big" id="btnShareFile">카톡으로 명단 파일 보내기</button>
+  <button class="big w" id="btnXlsx">엑셀 파일로 저장</button>
+  <button class="big w" id="btnShareText">글로 보내기 (문자·카톡)</button>
+  <button class="big w" id="btnMemoOut">폰 메모에 저장</button>
+  <button class="big w" id="btnVcfOut">주소록에 저장</button>
+  <button class="big g" id="btnMarkSent">위 명단을 「발송함」으로 표시</button>
+  <div class="warn">보낸 파일에는 받는 분 이름·주소·전화가 들어 있습니다. 영업소 한 곳에만 보내 주세요.</div>
+</section>
+
+<!-- 설정 -->
+<section id="v-set" class="hide">
+  <div class="card"><h3>보내는 분 (우리 농가)</h3>
+    <label>농가 이름</label><input id="cfName">
+    <label>전화</label><input id="cfTel" inputmode="tel">
+    <label>주소</label><input id="cfAddr">
+    <label>파는 물건 이름</label><input id="cfItem" placeholder="예) 노지감귤">
+    <label>상자 크기 (쉼표로 구분)</label><input id="cfSizes" placeholder="5kg,10kg">
+  </div>
+  <div class="card"><h3>사진 읽는 방법</h3>
+    <div class="chips"><button class="chip" data-ocr="local">폰 안에서 읽기</button><button class="chip" data-ocr="ai">구글 AI로 읽기</button></div>
+    <div class="muted" id="ocrHelp"></div>
+    <div id="aiBox"><label>구글 AI 키 (이 폰에만 저장)</label><input id="cfKey" type="password" autocomplete="off"><label>모델</label><input id="cfModel"></div>
+  </div>
+  <button class="big g" id="btnSaveCfg">설정 저장</button>
+  <div class="card"><h3>백업</h3>
+    <div class="muted">주문 기록은 이 폰 안에만 있습니다. 폰을 바꾸거나 앱을 지우기 전에 백업 파일을 저장해 두세요.</div>
+    <button class="big w" id="btnBackup">백업 파일 저장</button>
+    <button class="big w" id="btnRestore">백업 파일 불러오기</button>
+    <input type="file" id="fRestore" accept=".json,application/json" class="hide">
+    <button class="big w" id="btnWipe" style="color:var(--rd)">주문 기록 모두 지우기</button>
+  </div>
+  <div class="muted" style="text-align:center">찍으면 명단 시험판 0.2</div>
+</section>
+</main>
+<nav>
+  <button data-v="in" class="on">주문받기</button><button data-v="list">명단</button><button data-v="out">보내기</button><button data-v="set">설정</button>
+</nav>
+<div id="busy"><div id="busyMsg">읽는 중입니다</div><div id="busySub" style="font-size:16px;margin-top:8px;font-weight:500"></div></div>
+<div id="toast"></div>
+
+<script src="xlsx.full.min.js"></script>
+<script>
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
+let orders=LS.get('gyul_orders',[]);
+let cfg=Object.assign({name:'',tel:'',addr:'',item:'감귤',sizes:'5kg,10kg',ocr:'local',key:'',model:'gemini-3.1-flash-lite',mode:'order'},LS.get('gyul_cfg',{}));
+let pending=[], filter='all', outPaidOnly=true;
+const save=()=>{LS.set('gyul_orders',orders);refresh()};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2600)}
+function busy(on,msg,sub){$('#busy').style.display=on?'flex':'none';if(msg)$('#busyMsg').textContent=msg;$('#busySub').textContent=sub||''}
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sizes=()=>cfg.sizes.split(/[,\s]+/).filter(Boolean);
+
+/* ---------- 화면 전환 ---------- */
+$$('nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
+function show(v){$$('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));['in','list','out','set'].forEach(x=>$('#v-'+x).classList.toggle('hide',x!==v));if(v==='list')renderList();if(v==='out')renderOut();if(v==='set')renderSet();window.scrollTo(0,0)}
+
+/* ---------- 글 정리 (폰 안에서) ---------- */
+const PHONE=/(0\s*1\s*[016789])\s*[-.)\s]?\s*(\d\s*\d\s*\d\s*\d?)\s*[-.\s]?\s*(\d\s*\d\s*\d\s*\d)/;
+const PHONE2=/(0\d{1,2})[-.)\s]?(\d{3,4})[-.\s]?(\d{4})/;
+const SIDO='서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|충청|전라|경상';
+const ADDR_RE=new RegExp('(('+SIDO+')\\S*\\s|\\S+(시|군|구)\\s+\\S+(구|읍|면|동|로|길|리)|\\S{1,4}(도|시)\\s+\\S+(시|군|구)(\\s|$)|\\S+(로|길)\\s*\\d)');
+const KNUM={'한':1,'하나':1,'두':2,'둘':2,'세':3,'셋':3,'네':4,'넷':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
+function normPhone(m){const d=(m[1]+m[2]+m[3]).replace(/\s/g,'');return d.length===11?d.replace(/(\d{3})(\d{4})(\d{4})/,'$1-$2-$3'):d.replace(/(\d{3})(\d{3})(\d{4})/,'$1-$2-$3')}
+function fixDigits(s){/* 사진 글자에서 숫자 사이 O,o,l,I 를 숫자로 */s=s.replace(/(^|[^\d])(이\s?[0oO]|[oO]\s?1\s?[0oO]|[0oO]\s?[1lI|]\s?[0oO]|[0oO]1[0oO])(?=\s?[-.]?\s?\d{3,4})/g,'$1010');return s.replace(/(?<=\d)[Oo]|[Oo](?=\d)/g,'0').replace(/(?<=\d)[lI|]|[lI|](?=\d)/g,'1')}
+function pickQty(s,o){
+  let m;
+  if((m=s.match(/(\d+(?:\.\d+)?)\s*(kg|㎏|키로|킬로|k\b|K\b)/i))){o.size=m[1]+'kg';s=s.replace(m[0],' ')}
+  if((m=s.match(/(\d+)\s*(박스|상자|box|BOX|개|ea|통)/))){o.qty=+m[1];s=s.replace(m[0],' ')}
+  else if((m=s.match(new RegExp('('+Object.keys(KNUM).join('|')+')\\s*(박스|상자|개)')))){o.qty=KNUM[m[1]];s=s.replace(m[0],' ')}
+  else if(o.size && (m=s.match(/[x×*]\s*(\d+)/))){o.qty=+m[1];s=s.replace(m[0],' ')}
+  return s;
+}
+function looksName(t){t=t.replace(/^(받는\s*분|받는\s*사람|수령인|이름|성함|고객)\s*[:：]?\s*/,'').replace(/(님|씨|귀하)$/,'').trim();return /^[가-힣]{2,4}$/.test(t)?t:''}
+const CHAT=/^(안녕|주문|감귤|귤|한라봉|천혜향|레드향|황금향|입금|부탁|감사|보내|받는|택배|박스|상자|할게|해요|드려|합니다|요$)/;
+function splitAddr(s){
+  const re=new RegExp('(^|\\s)((('+SIDO+')\\S*)|\\S+(시|군))\\s');
+  const m=s.match(re);let idx=m?m.index+m[1].length:0;
+  let pre=s.slice(0,idx).trim(),addr=s.slice(idx).trim(),memo='',name='';
+  const cut=addr.search(/\s(입금|보내는|보낸|부탁|감사|주문|문\s?앞|경비실|배송\s*메모|선물|잘\s)/);
+  if(cut>0){memo=addr.slice(cut).trim();addr=addr.slice(0,cut).trim()}
+  if(pre){const tk=pre.split(/\s+/);for(let i=tk.length-1;i>=0;i--){const t=tk[i].replace(/[,.~!]+$/,'').replace(/(님|씨)$/,'');if(/^[가-힣]{2,4}$/.test(t)&&!CHAT.test(t)){name=t;tk.splice(i,1);break}}
+    const rest=tk.join(' ').replace(/^(안녕하세요|안녕하십니까)[\s~!.,]*/,'').trim();if(rest)memo=(rest+' '+memo).trim()}
+  return {addr,name,memo};
+}
+function parseText(raw){
+  const lines=fixDigits(raw).replace(/\r/g,'').split('\n').map(l=>l.trim());
+  const out=[];let cur=null;
+  const newCur=()=>{cur={id:uid(),name:'',phone:'',addr:'',size:'',qty:0,memo:'',src:''};out.push(cur)};
+  const has=k=>cur&&cur[k];
+  for(let line of lines){
+    if(!line){if(cur&&cur.phone&&cur.addr)cur=null;continue}
+    let s=line;
+    s=s.replace(/^(\d+[.)]\s+|[-•·*]\s*)/,'');
+    const lab=s.match(/^(보내는\s*분|보내는\s*사람|주문자|입금자)\s*[:：]?\s*(.*)$/);
+    if(lab){if(!cur)newCur();cur.memo=(cur.memo+' '+lab[1].replace(/\s/g,'')+': '+lab[2]).trim();continue}
+    s=s.replace(/^(주소|배송지|받는\s*곳)\s*[:：]\s*/,'').replace(/^(연락처|전화|핸드폰|휴대폰|폰|HP|hp|Tel|tel)\s*[:：]?\s*/,'').replace(/^(수량|상품|품목)\s*[:：]\s*/,'');
+    const pm=s.match(PHONE)||s.match(PHONE2);
+    const am=ADDR_RE.test(s);
+    if(!pm&&!am&&/(명단|목록|리스트|주문\s*(목록|명단|장)|모임|구역|회원|동창|^\d{1,2}\s*[\/.월]\s*\d{1,2}\s*일?)/.test(s)&&!(cur&&cur.phone&&!cur.name))continue;
+    if(pm&&has('phone'))newCur();
+    if(am&&has('addr')&&!pm)newCur();
+    if(!cur)newCur();
+    if(pm){cur.phone=normPhone(pm);s=s.replace(pm[0],' ')}
+    s=pickQty(s,cur);
+    s=s.replace(/^(받는\s*분|받는\s*사람|수령인|이름|성함)\s*[:：]?\s*/,'');
+    s=s.replace(/\s{2,}/g,' ').trim();
+    if(!s)continue;
+    if(ADDR_RE.test(s)){
+      const sp=splitAddr(s);
+      if(sp.name&&!cur.name)cur.name=sp.name;
+      if(sp.memo)cur.memo=(cur.memo+' '+sp.memo).trim();
+      cur.addr=(cur.addr?cur.addr+' ':'')+sp.addr;continue}
+    const nm=looksName(s);
+    if(nm&&!cur.name){cur.name=nm;continue}
+    // 이름 + 다른 말 "김영희님 귤 주문"
+    const m2=s.match(/^([가-힣]{2,4})(님|씨)?\s+(.*)$/);
+    if(m2&&!cur.name&&!cur.addr&&!/(주문|감귤|귤|한라봉|천혜향|레드향|입금|부탁|안녕)/.test(m2[1])){cur.name=m2[1];s=m2[3]}
+    if(cur.addr&&!cur.phone&&/^\d|동|호|층|아파트|빌라|번지/.test(s)&&s.length<30){cur.addr+=' '+s;continue}
+    if(s)cur.memo=(cur.memo+' '+s).trim();
+  }
+  return out.filter(o=>o.name||o.phone||o.addr).map(o=>{if(!o.qty)o.qty=1;if(!o.size&&sizes().length===1)o.size=sizes()[0];return o});
+}
+
+/* ---------- 사진 읽기 ---------- */
+function loadImg(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file);const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=u})}
+function toCanvas(img,max,gray){const sc=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);const x=c.getContext('2d');x.drawImage(img,0,0,c.width,c.height);
+  if(gray){const d=x.getImageData(0,0,c.width,c.height),p=d.data;for(let i=0;i<p.length;i+=4){let g=.299*p[i]+.587*p[i+1]+.114*p[i+2];g=g<150?Math.max(0,g-40):255;p[i]=p[i+1]=p[i+2]=g}x.putImageData(d,0,0)}return c}
+function loadScript(src){return new Promise((res,rej)=>{if(window.Tesseract)return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('인터넷 연결을 확인해 주세요'));document.head.appendChild(s)})}
+async function ocrLocal(img){
+  busy(true,'폰 안에서 글자를 읽는 중입니다','처음 한 번은 글자 사전을 받느라 1~2분 걸릴 수 있습니다');
+  await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+  const w=await Tesseract.createWorker('kor+eng',1,{logger:m=>{if(m.status==='recognizing text')$('#busySub').textContent='읽는 중 '+Math.round(m.progress*100)+'%'}});
+  const {data}=await w.recognize(toCanvas(img,2000,true));await w.terminate();
+  return data.text;
+}
+async function ocrAI(img){
+  if(!cfg.key)throw new Error('설정에서 구글 AI 키를 먼저 넣어 주세요');
+  busy(true,'구글 AI가 읽는 중입니다','10초쯤 걸립니다');
+  const b64=toCanvas(img,1600,false).toDataURL('image/jpeg',.85).split(',')[1];
+  const prompt=cfg.mode==='contact'?'이 사진은 손으로 적거나 인쇄한 사람 명단·연락처 메모입니다. 사람마다 이름, 전화번호, 주소, 기타 메모를 뽑아 주세요. 제목이나 날짜 줄은 사람으로 넣지 마세요. 읽기 어려운 글자는 추측하지 말고 그 칸에 ? 를 넣으세요. JSON 배열로만 답하세요: [{"name":"","phone":"","addr":"","size":"","qty":1,"memo":""}]':'이 사진은 한국 농가가 택배 주문을 손으로 적어 둔 노트나 메모입니다. 주문 한 건마다 받는 분 이름, 전화번호, 주소, 상자 크기(예: 5kg, 10kg), 상자 수, 기타 메모(보내는 분, 입금 여부 등)를 뽑아 주세요. 읽기 어려운 글자는 추측하지 말고 그 칸에 ? 를 넣으세요. 줄을 그어 지운 주문은 빼세요. JSON 배열로만 답하세요: [{"name":"","phone":"","addr":"","size":"","qty":1,"memo":""}]';
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(cfg.model)+':generateContent?key='+encodeURIComponent(cfg.key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],generationConfig:{responseMimeType:'application/json',temperature:0}})});
+  const j=await r.json();
+  if(!r.ok)throw new Error('구글 AI 오류: '+(j.error&&j.error.message||r.status));
+  const t=j.candidates[0].content.parts.map(p=>p.text||'').join('');
+  const arr=JSON.parse(t.replace(/^```json|```$/g,''));
+  return {raw:t,list:arr.map(o=>({id:uid(),name:o.name||'',phone:o.phone||'',addr:o.addr||'',size:(o.size||'').replace(/\s/g,''),qty:+o.qty||1,memo:o.memo||''}))};
+}
+async function handlePhoto(file){
+  if(!file)return;
+  try{
+    const img=await loadImg(file);
+    $('#photo').src=img.src;$('#photo').classList.remove('hide');
+    let list,raw;
+    if(cfg.ocr==='ai'){const r=await ocrAI(img);list=r.list;raw=r.raw}
+    else{raw=await ocrLocal(img);list=parseText(raw)}
+    busy(false);
+    $('#rawTxt').textContent=raw;$('#rawBox').classList.remove('hide');
+    startReview(list,cfg.ocr==='ai'?'구글 AI가 읽었습니다.':'폰 안에서 읽었습니다. 손글씨는 틀린 곳이 많을 수 있습니다.');
+  }catch(e){busy(false);alert(e.message||e)}
+}
+$('#btnCam').onclick=()=>$('#fCam').click();
+$('#btnAlbum').onclick=()=>$('#fAlbum').click();
+$('#fCam').onchange=e=>{handlePhoto(e.target.files[0]);e.target.value=''};
+$('#fAlbum').onchange=e=>{handlePhoto(e.target.files[0]);e.target.value=''};
+$('#btnPaste').onclick=()=>{$('#pasteBox').classList.toggle('hide');$('#pasteTxt').focus()};
+$('#btnParse').onclick=()=>{const l=parseText($('#pasteTxt').value);$('#photo').classList.add('hide');$('#rawBox').classList.add('hide');startReview(l,'글에서 읽었습니다.')};
+$('#btnManual').onclick=()=>{$('#photo').classList.add('hide');$('#rawBox').classList.add('hide');startReview([{id:uid(),name:'',phone:'',addr:'',size:sizes()[0]||'',qty:1,memo:''}],'칸을 채워 주세요.')};
+
+/* ---------- 모드 ---------- */
+function setMode(m){cfg.mode=m;LS.set('gyul_cfg',cfg);$('#hdrsum').style.display=m==='order'?'':'none';document.querySelectorAll('[data-mode]').forEach(c=>c.classList.toggle('on',c.dataset.mode===m));
+  $('#modeHelp').textContent=m==='order'?'받는 분·주소·상자 수를 정리해 영업소·택배로 넘깁니다.':'이름·전화·주소를 정리해 카톡, 폰 메모, 주소록에 저장합니다.';
+  $('#btnCam').textContent=m==='order'?'노트 사진 찍기':'명단·메모 사진 찍기';
+  $('#btnPaste').textContent=m==='order'?'카톡·문자 주문 글 붙여넣기':'카톡·문자 글 붙여넣기';
+  if(pending.length)renderReview()}
+document.querySelectorAll('[data-mode]').forEach(c=>c.onclick=()=>setMode(c.dataset.mode));
+
+/* ---------- 저장 방법 3가지 ---------- */
+function plainText(L,order){return L.map((o,i)=>(L.length>1?(i+1)+'. ':'')+(o.name||'(이름 없음)')+(o.phone?' / '+o.phone:'')+(o.addr?'\n   '+o.addr:'')+(order&&o.size?'\n   '+(cfg.item||'')+' '+o.size+' '+(o.qty||1)+'상자':'')+(o.memo?'\n   '+o.memo:'')).join('\n\n')}
+async function shareText(t,title){if(navigator.share){try{await navigator.share({title,text:t});return}catch(e){if(e.name==='AbortError')return}}
+  try{await navigator.clipboard.writeText(t);toast('글을 복사했습니다. 붙여넣기 하세요')}catch(e){prompt('아래 글을 복사하세요',t)}}
+function vcfEsc(s){return String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/[,;]/g,m=>'\\'+m)}
+function makeVcf(L){return L.map(o=>['BEGIN:VCARD','VERSION:3.0','N;CHARSET=UTF-8:'+vcfEsc(o.name)+';;;;','FN;CHARSET=UTF-8:'+vcfEsc(o.name||o.phone),o.phone?'TEL;TYPE=CELL:'+o.phone:'',o.addr?'ADR;TYPE=HOME;CHARSET=UTF-8:;;'+vcfEsc(o.addr)+';;;;':'',o.memo?'NOTE;CHARSET=UTF-8:'+vcfEsc(o.memo):'','END:VCARD'].filter(Boolean).join('\r\n')).join('\r\n')+'\r\n'}
+async function saveContacts(L){L=L.filter(o=>o.name||o.phone);if(!L.length)return toast('저장할 연락처가 없습니다');
+  const name=(L.length===1?(L[0].name||'연락처'):'연락처_'+L.length+'명')+'.vcf';
+  const f=new File([makeVcf(L)],name,{type:'text/vcard'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'연락처'});return}catch(e){if(e.name==='AbortError')return}}
+  download(f,name);toast('연락처 파일을 받았습니다. 알림창이나 다운로드에서 눌러 「연락처에 추가」를 고르세요')}
+function reviewList(){return pending.filter(o=>o.name||o.phone||o.addr)}
+$('#dKakao').onclick=()=>shareText(plainText(reviewList(),cfg.mode==='order'),'명단');
+$('#dMemo').onclick=()=>shareText((cfg.mode==='order'?'주문 명단 ':'연락처 명단 ')+today()+'\n\n'+plainText(reviewList(),cfg.mode==='order'),'명단 '+today());
+$('#dContact').onclick=()=>saveContacts(reviewList());
+
+/* ---------- 확인 화면 ---------- */
+function startReview(list,msg){
+  pending=list;
+  if(!list.length){alert('주문을 찾지 못했습니다. 사진을 더 밝고 반듯하게 찍거나, 손으로 써 주세요.');return}
+  $('#reviewMsg').textContent=msg+' 모두 '+list.length+'건입니다. 빨간 칸은 꼭 확인해 주세요.';
+  $('#reviewBox').classList.remove('hide');$('#pasteBox').classList.add('hide');$('#destBox').classList.remove('hide');$('#btnSaveAll').textContent=cfg.mode==='order'?'모두 주문 명단에 넣기':'앱 명단에도 넣기';
+  renderReview();$('#reviewBox').scrollIntoView({behavior:'smooth'});
+}
+function sizeOpts(v){const s=sizes();if(v&&!s.includes(v))s.push(v);return '<option value="">선택</option>'+s.map(x=>'<option'+(x===v?' selected':'')+'>'+esc(x)+'</option>').join('')}
+function formHTML(o,i,pre,contact){
+  const bad=k=>(!o[k]||/\?/.test(o[k]))?(contact&&k==='addr'?'':' err'):'';
+  const phoneBad=(!o.phone||!/^0\d{1,2}-?\d{3,4}-?\d{4}$/.test(o.phone))?' err':'';
+  return `<label>받는 분</label><input data-k="name" data-i="${i}" class="${pre}${bad('name')}" value="${esc(o.name)}">
+  <label>전화</label><input data-k="phone" data-i="${i}" inputmode="tel" class="${pre}${phoneBad}" value="${esc(o.phone)}">
+  <label>주소</label><textarea data-k="addr" data-i="${i}" class="${pre}${bad('addr')}" style="min-height:70px">${esc(o.addr)}</textarea>
+  <div class="row${contact?' hide':''}"><div><label>상자 크기</label><select data-k="size" data-i="${i}" class="${pre}${o.size?'':' err'}">${sizeOpts(o.size)}</select></div>
+  <div><label>상자 수</label><input data-k="qty" data-i="${i}" type="number" min="1" inputmode="numeric" class="${pre}" value="${o.qty||1}"></div></div>
+  <label>${contact?'메모':'메모 (보내는 분, 입금자 등)'}</label><input data-k="memo" data-i="${i}" class="${pre}" value="${esc(o.memo)}">`;
+}
+function renderReview(){
+  $('#reviewList').innerHTML=pending.map((o,i)=>`<div class="card"><h3>${i+1}번 주문</h3>${formHTML(o,i,'rv',cfg.mode==='contact')}<div class="btns"><button class="del" data-rm="${i}">이 건 빼기</button></div></div>`).join('');
+  $$('#reviewList .rv').forEach(el=>el.oninput=el.onchange=()=>{const o=pending[el.dataset.i];o[el.dataset.k]=el.dataset.k==='qty'?+el.value:el.value.trim();el.classList.remove('err')});
+  $$('#reviewList [data-rm]').forEach(b=>b.onclick=()=>{pending.splice(+b.dataset.rm,1);if(!pending.length)return closeReview();renderReview()});
+}
+function closeReview(){pending=[];$('#reviewBox').classList.add('hide');$('#photo').classList.add('hide')}
+$('#btnCancel').onclick=closeReview;
+$('#btnSaveAll').onclick=()=>{
+  const now=today();let dup=0;
+  pending.forEach(o=>{if(orders.some(x=>x.phone&&x.phone===o.phone&&x.addr===o.addr&&!x.sent&&x.size===o.size))dup++;
+    orders.unshift({id:o.id||uid(),date:now,name:o.name,phone:o.phone,addr:o.addr,size:o.size,qty:+o.qty||1,memo:o.memo,paid:false,sent:false,inv:''})});
+  const n=pending.length;closeReview();$('#pasteTxt').value='';save();
+  toast(n+'건을 명단에 넣었습니다'+(dup?' (같은 주문이 이미 '+dup+'건 있어요. 명단에서 확인해 주세요)':''));show('list');
+};
+
+/* ---------- 명단 ---------- */
+function refresh(){const unsent=orders.filter(o=>!o.sent);$('#hdrsum').textContent='발송 전 '+unsent.length+'건 · '+unsent.reduce((a,o)=>a+(+o.qty||0),0)+'상자'}
+$('#q').oninput=renderList;
+$$('#flt .chip').forEach(c=>c.onclick=()=>{filter=c.dataset.f;$$('#flt .chip').forEach(x=>x.classList.toggle('on',x===c));renderList()});
+function renderList(){
+  $('#sOrd').textContent=orders.length;$('#sBox').textContent=orders.reduce((a,o)=>a+(+o.qty||0),0);
+  $('#sUnpaid').textContent=orders.filter(o=>!o.paid).length;$('#sUnsent').textContent=orders.filter(o=>!o.sent).length;
+  const q=$('#q').value.trim().replace(/-/g,'');
+  let L=orders.filter(o=>filter==='all'||(filter==='unpaid'&&!o.paid)||(filter==='unsent'&&!o.sent)||(filter==='sent'&&o.sent));
+  if(q)L=L.filter(o=>(o.name+o.phone.replace(/-/g,'')+o.addr+o.memo).includes(q));
+  if(!L.length){$('#list').innerHTML='<div class="card muted">주문이 없습니다.</div>';return}
+  $('#list').innerHTML=L.map(o=>`<div class="card" data-id="${o.id}">
+    <h3>${esc(o.name||'(이름 없음)')} <span class="muted">${esc(o.size)} × ${o.qty}상자</span></h3>
+    <div><span class="tag ${o.paid?'t-ok':'t-no'}">${o.paid?'입금됨':'입금 전'}</span><span class="tag ${o.sent?'t-ok':'t-no'}">${o.sent?'발송함':'발송 전'}</span><span class="muted">${esc(o.date)}</span></div>
+    <div><a class="tel" href="tel:${esc(o.phone)}">${esc(o.phone)}</a></div>
+    <div>${esc(o.addr)}</div>${o.memo?`<div class="muted">${esc(o.memo)}</div>`:''}${o.inv?`<div class="muted">송장 ${esc(o.inv)}</div>`:''}
+    <div class="btns"><button data-a="paid" class="${o.paid?'on':''}">입금</button><button data-a="sent" class="${o.sent?'on':''}">발송</button><button data-a="edit">고치기</button><button data-a="inv">송장번호</button><button data-a="again">다시 주문</button><button data-a="vcf">주소록</button><button data-a="del" class="del">지우기</button></div>
+    <div class="ed"></div></div>`).join('');
+  $$('#list [data-a]').forEach(b=>b.onclick=()=>listAct(b.closest('.card').dataset.id,b.dataset.a,b));
+}
+function listAct(id,a,b){
+  const o=orders.find(x=>x.id===id);if(!o)return;
+  if(a==='paid'){o.paid=!o.paid;save();renderList()}
+  else if(a==='sent'){o.sent=!o.sent;save();renderList()}
+  else if(a==='inv'){const v=prompt('송장번호를 넣어 주세요',o.inv||'');if(v!==null){o.inv=v.trim();if(o.inv)o.sent=true;save();renderList()}}
+  else if(a==='del'){if(confirm((o.name||'이 주문')+' 주문을 지울까요?')){orders=orders.filter(x=>x!==o);save();renderList()}}
+  else if(a==='vcf'){saveContacts([o])}
+  else if(a==='again'){orders.unshift(Object.assign({},o,{id:uid(),date:today(),paid:false,sent:false,inv:''}));save();toast(o.name+' 님 주문을 새로 넣었습니다');renderList()}
+  else if(a==='edit'){const ed=b.closest('.card').querySelector('.ed');if(ed.innerHTML){ed.innerHTML='';return}
+    ed.innerHTML=formHTML(o,0,'le')+'<button class="big g" style="padding:12px">고친 것 저장</button>';
+    ed.querySelector('button').onclick=()=>{ed.querySelectorAll('.le').forEach(el=>{o[el.dataset.k]=el.dataset.k==='qty'?+el.value:el.value.trim()});save();renderList();toast('저장했습니다')}}
+}
+
+/* ---------- 보내기 ---------- */
+function outList(){return orders.filter(o=>!o.sent&&(!outPaidOnly||o.paid)).slice().reverse()}
+function renderOut(){const L=outList();const by={};L.forEach(o=>by[o.size||'크기 미정']=(by[o.size||'크기 미정']||0)+(+o.qty||0));
+  $('#outInfo').innerHTML=L.length?(L.length+'건 · '+Object.entries(by).map(([k,v])=>esc(k)+' '+v+'상자').join(', ')):'보낼 주문이 없습니다';}
+$('#oPaidOnly').onclick=()=>{outPaidOnly=true;$('#oPaidOnly').classList.add('on');$('#oAll').classList.remove('on');renderOut()};
+$('#oAll').onclick=()=>{outPaidOnly=false;$('#oAll').classList.add('on');$('#oPaidOnly').classList.remove('on');renderOut()};
+const COLS=['번호','받는분','받는분 전화','받는분 주소','상품명','상자 크기','상자 수','메모','보내는분','보내는분 전화','보내는분 주소'];
+function rows(L){return L.map((o,i)=>[i+1,o.name,o.phone,o.addr,cfg.item,o.size,o.qty,o.memo,cfg.name,cfg.tel,cfg.addr])}
+function fname(ext){return (cfg.name||'귤주문')+'_발송명단_'+today()+'.'+ext}
+function makeXlsx(L){const ws=XLSX.utils.aoa_to_sheet([COLS,...rows(L)]);ws['!cols']=[{wch:5},{wch:10},{wch:15},{wch:45},{wch:10},{wch:8},{wch:7},{wch:20},{wch:10},{wch:15},{wch:30}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'발송명단');return XLSX.write(wb,{bookType:'xlsx',type:'array'})}
+function makeCsv(L){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';return '\ufeff'+[COLS,...rows(L)].map(r=>r.map(q).join(',')).join('\r\n')}
+function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
+$('#btnXlsx').onclick=()=>{const L=outList();if(!L.length)return toast('보낼 주문이 없습니다');download(new Blob([makeXlsx(L)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),fname('xlsx'));toast('엑셀 파일을 저장했습니다 (다운로드 폴더)')};
+$('#btnShareFile').onclick=async()=>{const L=outList();if(!L.length)return toast('보낼 주문이 없습니다');
+  const f=new File([makeCsv(L)],fname('csv'),{type:'text/csv'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'발송 명단'})}catch(e){}}
+  else{download(f,f.name);toast('이 폰은 파일 바로 보내기가 안 되어 파일로 저장했습니다')}};
+function textOf(L){return (cfg.name?cfg.name+' 발송 명단 ':'발송 명단 ')+today()+' ('+L.length+'건)\n\n'+L.map((o,i)=>(i+1)+'. '+o.name+' / '+o.phone+'\n   '+o.addr+'\n   '+cfg.item+' '+o.size+' '+o.qty+'상자'+(o.memo?' / '+o.memo:'')).join('\n\n')}
+$('#btnShareText').onclick=async()=>{const L=outList();if(!L.length)return toast('보낼 주문이 없습니다');const t=textOf(L);
+  if(navigator.share){try{await navigator.share({text:t})}catch(e){}}else{await navigator.clipboard.writeText(t);toast('글을 복사했습니다. 카톡에 붙여넣으세요')}};
+$('#btnMemoOut').onclick=()=>{const L=outList();if(!L.length)return toast('보낼 주문이 없습니다');shareText(textOf(L),'발송 명단 '+today())};
+$('#btnVcfOut').onclick=()=>{const L=outList();if(!L.length)return toast('저장할 주문이 없습니다');saveContacts(L)};
+$('#btnMarkSent').onclick=()=>{const L=outList();if(!L.length)return toast('표시할 주문이 없습니다');if(!confirm(L.length+'건을 「발송함」으로 표시할까요?'))return;L.forEach(o=>o.sent=true);save();renderOut();toast(L.length+'건을 발송함으로 표시했습니다')};
+
+/* ---------- 설정 ---------- */
+function renderSet(){$('#cfName').value=cfg.name;$('#cfTel').value=cfg.tel;$('#cfAddr').value=cfg.addr;$('#cfItem').value=cfg.item;$('#cfSizes').value=cfg.sizes;$('#cfKey').value=cfg.key;$('#cfModel').value=cfg.model;ocrUI()}
+function ocrUI(){$$('[data-ocr]').forEach(c=>c.classList.toggle('on',c.dataset.ocr===cfg.ocr));$('#aiBox').classList.toggle('hide',cfg.ocr!=='ai');
+  $('#ocrHelp').textContent=cfg.ocr==='ai'?'손글씨를 훨씬 잘 읽습니다. 대신 찍은 사진이 구글로 보내져 읽힌 뒤 돌아옵니다. 둘리나 다른 누구에게도 저장되지 않지만, 사진이 폰 밖으로 나가는 방법입니다.':'사진이 폰 밖으로 나가지 않습니다. 인쇄한 글씨는 잘 읽지만 손글씨는 틀리는 곳이 많습니다.'}
+$$('[data-ocr]').forEach(c=>c.onclick=()=>{cfg.ocr=c.dataset.ocr;ocrUI()});
+$('#btnSaveCfg').onclick=()=>{cfg.name=$('#cfName').value.trim();cfg.tel=$('#cfTel').value.trim();cfg.addr=$('#cfAddr').value.trim();cfg.item=$('#cfItem').value.trim()||'감귤';cfg.sizes=$('#cfSizes').value.trim()||'5kg,10kg';cfg.key=$('#cfKey').value.trim();cfg.model=$('#cfModel').value.trim()||'gemini-3.1-flash-lite';LS.set('gyul_cfg',cfg);toast('설정을 저장했습니다')};
+$('#btnBackup').onclick=()=>download(new Blob([JSON.stringify({v:1,orders,cfg:Object.assign({},cfg,{key:''})},null,1)],{type:'application/json'}),'귤주문장_백업_'+today()+'.json');
+$('#btnRestore').onclick=()=>$('#fRestore').click();
+$('#fRestore').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.orders))throw 0;if(!confirm('백업의 '+j.orders.length+'건으로 바꿀까요? 지금 기록은 사라집니다.'))return;orders=j.orders;if(j.cfg)cfg=Object.assign(cfg,j.cfg,{key:cfg.key});LS.set('gyul_cfg',cfg);save();renderSet();toast('불러왔습니다')}catch(x){alert('백업 파일이 아닙니다')}e.target.value=''};
+$('#btnWipe').onclick=()=>{if(confirm('주문 기록을 모두 지울까요? 되돌릴 수 없습니다.')&&confirm('정말 지울까요?')){orders=[];save();toast('모두 지웠습니다')}};
+
+refresh();setMode(cfg.mode||'order');
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
