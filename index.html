@@ -56,7 +56,7 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
 <main>
 <!-- 주문받기 -->
 <section id="v-in">
-  <div class="card" id="bizBar" style="padding:10px 14px;margin-top:0;display:flex;align-items:center;justify-content:space-between"><div><span class="muted">지금 쓰는 용도</span><br><b id="bizName" style="font-size:20px"></b></div><button class="chip" id="btnBiz">바꾸기</button></div>
+  <div class="card" id="bizBar" style="padding:10px 14px;margin-top:0;display:flex;align-items:center;justify-content:space-between"><div><span class="muted">지금 쓰는 용도</span><br><b id="bizName" style="font-size:20px"></b><br><small id="licBadge" style="font-size:15px;font-weight:700"></small></div><button class="chip" id="btnBiz">바꾸기</button></div>
   <div class="muted" id="modeHelp" style="margin-bottom:4px"></div>
   <button class="big" id="btnCam">노트 사진 찍기</button>
   <button class="big w" id="btnAlbum">앨범에서 사진 고르기</button>
@@ -136,6 +136,7 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
     <div class="muted" id="ocrHelp"></div>
     <div id="aiBox"><label>이용 코드 (판매자에게 받은 코드)</label><input id="cfCode" autocomplete="off" autocapitalize="characters" placeholder="예) MD-ABCD-1234">
       <div class="muted" id="codeInfo"></div>
+      <button class="chip" id="btnBuy2" style="margin-top:6px">이용권 가격 보기</button>
       <details style="margin-top:8px"><summary class="muted">고급: 내 구글 AI 키 직접 쓰기</summary><label>구글 AI 키 (이 폰에만 저장)</label><input id="cfKey" type="password" autocomplete="off"><label>모델</label><input id="cfModel"></details></div>
   </div>
   <button class="big g" id="btnSaveCfg">설정 저장</button>
@@ -146,7 +147,7 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
     <input type="file" id="fRestore" accept=".json,application/json" class="hide">
     <button class="big w" id="btnWipe" style="color:var(--rd)">주문 기록 모두 지우기</button>
   </div>
-  <div class="muted" style="text-align:center">찍으면 명단 시험판 0.7</div>
+  <div class="muted" style="text-align:center">찍으면 명단 시험판 0.8</div>
 </section>
 </main>
 <nav>
@@ -158,6 +159,11 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
 <button class="big" data-biz="food">반찬·떡·수제품 주문<br><small>받을 날짜까지 함께 관리</small></button>
 <button class="big w" data-biz="contact">명단·연락처만<br><small>교회·모임·동창회 명단 정리</small></button></div></div>
 <datalist id="prodList"></datalist>
+<div id="gate" class="ov hide"><div class="ovin"><h2 style="margin:4px 0">찍으면 명단 시작하기</h2><div class="muted" id="gateMsg"></div>
+<button class="big" id="gTrial">무료로 7일 써 보기<br><small>AI 읽기 10장 포함 · 결제 정보 필요 없음</small></button>
+<label>이용 코드가 있으세요?</label><input id="gCode" autocapitalize="characters" autocomplete="off" placeholder="예) MD-ABCD-1234"><button class="big g" id="gCodeBtn">코드 넣기</button>
+<button class="big w" id="gBuy">이용권 가격 보기</button><button class="big w" id="gClose">닫기</button></div></div>
+<div id="buy" class="ov hide" style="z-index:31"><div class="ovin"><h2 style="margin:4px 0">이용권 가격</h2><div id="buyList"></div><div class="warn">구매는 이 앱을 소개해 드린 분께 문의해 주세요. 곧 앱 안에서 바로 결제할 수 있게 됩니다.</div><button class="big w" id="buyClose">닫기</button></div></div>
 <div id="busy"><div id="busyMsg">읽는 중입니다</div><div id="busySub" style="font-size:16px;margin-top:8px;font-weight:500"></div></div>
 <div id="toast"></div>
 
@@ -269,7 +275,7 @@ async function ocrAI(img){
   if(!cfg.key&&!cfg.code){busy(false);show('set');throw new Error('설정에서 이용 코드를 먼저 넣어 주세요');}
   busy(true,'구글 AI가 읽는 중입니다','보통 10초, 길면 30초쯤 걸립니다');
   const b64=toCanvas(img,1600,false).toDataURL('image/jpeg',.85).split(',')[1];
-  if(cfg.code&&!cfg.key){const j=await relay({code:cfg.code,mode:BIZ[cfg.biz].server,hint:aiHint(),image:b64});if(!j.ok)throw new Error(j.error||'읽지 못했습니다');const arr=JSON.parse(String(j.text).replace(/^```json|```$/g,''));lastRemain=j.remaining;return {raw:j.text,list:arr.map(mapAI)}}
+  if(cfg.code&&!cfg.key){const j=await relay({code:cfg.code,mode:BIZ[cfg.biz].server,hint:aiHint(),image:b64});if(!j.ok)throw new Error(j.error||'읽지 못했습니다');const arr=JSON.parse(String(j.text).replace(/^```json|```$/g,''));lastRemain=j.remaining;if(cfg.lic){cfg.lic.remaining=j.remaining;LS.set('gyul_cfg',cfg);refreshLic()}return {raw:j.text,list:arr.map(mapAI)}}
   const prompt=aiPrompt();
   const body=JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],generationConfig:{responseMimeType:'application/json',temperature:0}});
   let r,j;
@@ -292,7 +298,8 @@ async function handlePhoto(file,force){
     const img=force?lastImg:await loadImg(file);lastImg=img;
     $('#photo').src=img.src;$('#photo').classList.remove('hide');
     let list,raw;
-    const useAI=force==='ai'||cfg.ocr==='ai';
+    let useAI=force==='ai'||cfg.ocr==='ai';
+    if(useAI&&!aiOK()){useAI=false;setTimeout(()=>{if(confirm('AI 읽기 이용권이 없어 폰 안에서 읽었습니다. 이용권 가격을 보시겠어요?'))showBuy()},400)}
     if(useAI){const r=await ocrAI(img);list=r.list;raw=r.raw}
     else{raw=await ocrLocal(img);list=parseText(raw)}
     busy(false);
@@ -301,14 +308,14 @@ async function handlePhoto(file,force){
     $('#btnAiRetry').classList.toggle('hide',useAI);
   }catch(e){busy(false);alert(e.message||e)}
 }
-$('#btnAiRetry').onclick=()=>{if(!cfg.key&&!cfg.code){alert('설정에서 이용 코드를 먼저 넣어 주세요');show('set');return}if(lastImg)handlePhoto(null,'ai')};
-$('#btnCam').onclick=()=>$('#fCam').click();
-$('#btnAlbum').onclick=()=>$('#fAlbum').click();
+$('#btnAiRetry').onclick=()=>{if(!aiOK()){showBuy();return}if(lastImg)handlePhoto(null,'ai')};
+$('#btnCam').onclick=()=>{if(needLic())$('#fCam').click()};
+$('#btnAlbum').onclick=()=>{if(needLic())$('#fAlbum').click()};
 $('#fCam').onchange=e=>{handlePhoto(e.target.files[0]);e.target.value=''};
 $('#fAlbum').onchange=e=>{handlePhoto(e.target.files[0]);e.target.value=''};
-$('#btnPaste').onclick=()=>{$('#pasteBox').classList.toggle('hide');$('#pasteTxt').focus()};
+$('#btnPaste').onclick=()=>{if(!needLic())return;$('#pasteBox').classList.toggle('hide');$('#pasteTxt').focus()};
 $('#btnParse').onclick=()=>{$('#btnAiRetry').classList.add('hide');const l=parseText($('#pasteTxt').value);$('#photo').classList.add('hide');$('#rawBox').classList.add('hide');startReview(l,'글에서 읽었습니다.')};
-$('#btnManual').onclick=()=>{$('#btnAiRetry').classList.add('hide');$('#photo').classList.add('hide');$('#rawBox').classList.add('hide');startReview([{id:uid(),name:'',phone:'',addr:'',size:sizes()[0]||'',qty:1,memo:''}],'칸을 채워 주세요.')};
+$('#btnManual').onclick=()=>{if(!needLic())return;$('#btnAiRetry').classList.add('hide');$('#photo').classList.add('hide');$('#rawBox').classList.add('hide');startReview([{id:uid(),name:'',phone:'',addr:'',size:sizes()[0]||'',qty:1,memo:''}],'칸을 채워 주세요.')};
 
 /* ---------- 업종 ---------- */
 const BIZ={
@@ -356,6 +363,7 @@ function fillProdList(){$('#prodList').innerHTML=products().map(p=>'<option valu
 function showBizPick(){$('#bizPick').classList.remove('hide')}
 $('#btnBiz').onclick=showBizPick;
 document.querySelectorAll('[data-biz]').forEach(b=>b.onclick=()=>{$('#bizPick').classList.add('hide');setBiz(b.dataset.biz);
+  if(!licOK()){setTimeout(()=>showGate(),200);return}
   if(useItems()&&!products().length)setTimeout(()=>{if(confirm('「내 상품 목록」을 넣어 두면 상품 이름과 가격을 알아서 맞춰 줍니다. 지금 넣으시겠어요?'))show('set')},200);else toast(BIZ[b.dataset.biz].name+'(으)로 바꿨습니다')});
 
 /* 주문 상품 입력칸 (일반 상품·반찬) */
@@ -404,10 +412,42 @@ $('#dKakao').onclick=()=>shareText(plainText(reviewList(),cfg.mode==='order'),'�
 $('#dMemo').onclick=()=>shareText((cfg.mode==='order'?'주문 명단 ':'연락처 명단 ')+today()+'\n\n'+plainText(reviewList(),cfg.mode==='order'),'명단 '+today());
 $('#dContact').onclick=()=>saveContacts(reviewList());
 
+/* ---------- 이용권 ---------- */
+const PRICES=[
+  ['기본 이용권','19,900원','1년 · AI 읽기를 뺀 모든 기능 (카톡 글 정리, 손입력, 폰 안 사진 읽기, 명단·입금·발송, 카톡·메모·주소록·엑셀)'],
+  ['AI 이용권 (추가)','월 4,900원 / 월 9,900원','손글씨·우편물을 AI로 정확하게 읽기 · 월 300장 / 월 1,000장'],
+  ['기본+AI 묶음','29,900원','기본 1년 + AI 3개월 (따로 사는 것보다 저렴)'],
+  ['무료 체험','0원','7일 · AI 읽기 10장 포함']
+];
+function licOK(){const L=cfg.lic;if(cfg.key)return true;if(!L||L.bad)return false;if(L.expires&&L.expires<today())return false;return Date.now()-(L.checked||0)<7*864e5}
+function aiOK(){return !!cfg.key||(licOK()&&cfg.lic&&cfg.lic.ai)}
+function licText(){const L=cfg.lic;if(cfg.key&&!cfg.code)return '내 구글 AI 키로 사용 중';if(!L)return '이용권 없음';if(L.bad)return '확인 실패: '+(L.error||'');
+  return L.type+(L.expires?' · '+L.expires+'까지':'')+(L.ai?' · 이번 달 AI 남은 사진 '+L.remaining+'장':' · AI 읽기 없음')}
+async function verifyLic(){
+  if(!cfg.code){cfg.lic=null;LS.set('gyul_cfg',cfg);return false}
+  try{const j=await relay({code:cfg.code,action:'check'});
+    cfg.lic=j.ok?{type:j.type,expires:j.expires||'',ai:!!j.ai,remaining:j.remaining,limit:j.limit,checked:Date.now()}:{bad:true,error:j.error,checked:Date.now()};
+    if(j.ok&&j.ai&&!cfg.key)cfg.ocr='ai';if(j.ok&&!j.ai&&!cfg.key)cfg.ocr='local';
+    LS.set('gyul_cfg',cfg);return !!j.ok}
+  catch(e){return licOK()}
+}
+function showGate(msg){$('#gateMsg').textContent=msg||'처음 7일은 무료로 써 보실 수 있습니다. 이용권이 있으시면 코드를 넣어 주세요.';$('#gCode').value=cfg.code||'';$('#gate').classList.remove('hide')}
+function showBuy(){$('#buyList').innerHTML=PRICES.map(p=>'<div class="card" style="margin:8px 0"><b style="font-size:19px">'+esc(p[0])+'</b> <span style="float:right;color:#a35c00;font-weight:800">'+esc(p[1])+'</span><div class="muted" style="clear:both">'+esc(p[2])+'</div></div>').join('');$('#buy').classList.remove('hide')}
+function needLic(){if(licOK())return true;const L=cfg.lic;showGate(L&&L.bad?L.error:(L&&L.expires&&L.expires<today()?'이용 기간이 끝났습니다('+L.expires+'). 이용권을 연장해 주세요. 지금까지의 명단은 그대로 볼 수 있습니다.':''));return false}
+async function setCode(c){cfg.code=String(c||'').trim().toUpperCase();LS.set('gyul_cfg',cfg);busy(true,'이용 코드를 확인하는 중입니다');const ok=await verifyLic();busy(false);refreshLic();return ok}
+function refreshLic(){const el=$('#codeInfo');if(el){el.textContent=cfg.code||cfg.key?licText():'';el.style.color=licOK()?'#2e7d32':'#c62828'}const b=$('#licBadge');if(b){b.textContent=licOK()?(cfg.lic&&cfg.lic.type==='체험'?'체험 중 · '+cfg.lic.expires+'까지':(cfg.lic?cfg.lic.type:'')):'이용권 없음';b.style.color=licOK()?'#2e7d32':'#c62828'}}
+$('#gTrial').onclick=async()=>{if(!cfg.dev){cfg.dev=(Date.now().toString(36)+Math.random().toString(36).slice(2,10)).replace(/[^a-z0-9]/g,'');LS.set('gyul_cfg',cfg)}
+  busy(true,'무료 체험을 준비하는 중입니다');try{const j=await relay({action:'trial',dev:cfg.dev});busy(false);if(!j.ok)return alert(j.error||'체험을 시작하지 못했습니다');
+    const ok=await setCode(j.code);if(ok){$('#gate').classList.add('hide');alert(j.again?'이미 체험 중인 코드를 다시 넣었습니다.':'무료 체험이 시작됐습니다. 7일 동안 모든 기능과 AI 읽기 10장을 쓸 수 있습니다.')}}
+  catch(e){busy(false);alert('인터넷 연결을 확인해 주세요')}};
+$('#gCodeBtn').onclick=async()=>{const c=$('#gCode').value.trim();if(!c)return alert('이용 코드를 넣어 주세요');const ok=await setCode(c);if(ok){$('#gate').classList.add('hide');toast('이용 코드를 확인했습니다 · '+licText())}else alert((cfg.lic&&cfg.lic.error)||'확인하지 못했습니다')};
+$('#gBuy').onclick=showBuy;$('#gClose').onclick=()=>$('#gate').classList.add('hide');
+$('#buyClose').onclick=()=>$('#buy').classList.add('hide');
+
 /* ---------- 확인 화면 ---------- */
 function startReview(list,msg){
   pending=list;
-  if(!list.length){if(lastImg&&(cfg.key||cfg.code)&&cfg.ocr!=='ai'&&confirm('폰 안에서는 읽지 못했습니다. 구글 AI로 다시 읽을까요?')){handlePhoto(null,'ai');return}alert('찾지 못했습니다. 사진을 더 밝고 반듯하게 찍거나, 손으로 써 주세요.');return}
+  if(!list.length){if(lastImg&&aiOK()&&cfg.ocr!=='ai'&&confirm('폰 안에서는 읽지 못했습니다. 구글 AI로 다시 읽을까요?')){handlePhoto(null,'ai');return}alert('찾지 못했습니다. 사진을 더 밝고 반듯하게 찍거나, 손으로 써 주세요.');return}
   $('#reviewMsg').textContent=msg+' 모두 '+list.length+'건입니다. 빨간 칸은 꼭 확인해 주세요.';
   $('#reviewBox').classList.remove('hide');$('#pasteBox').classList.add('hide');$('#destBox').classList.remove('hide');$('#btnSaveAll').textContent=cfg.mode==='order'?'모두 주문 명단에 넣기':'앱 명단에도 넣기';
   renderReview();$('#reviewBox').scrollIntoView({behavior:'smooth'});
@@ -506,15 +546,17 @@ function ocrUI(){$$('[data-ocr]').forEach(c=>c.classList.toggle('on',c.dataset.o
   $('#ocrHelp').textContent=cfg.ocr==='ai'?'손글씨와 우편물을 훨씬 정확하게 읽습니다. 찍은 사진은 읽는 데만 쓰이고 어디에도 저장되지 않습니다. 이용 코드가 필요합니다.':'사진이 폰 밖으로 나가지 않습니다. 인쇄한 글씨는 잘 읽지만 손글씨는 틀리는 곳이 많습니다.'}
 $$('[data-ocr]').forEach(c=>c.onclick=()=>{cfg.ocr=c.dataset.ocr;ocrUI()});
 $('#btnSaveCfg').onclick=()=>{cfg.name=$('#cfName').value.trim();cfg.tel=$('#cfTel').value.trim();cfg.addr=$('#cfAddr').value.trim();cfg.item=$('#cfItem').value.trim()||'감귤';cfg.sizes=$('#cfSizes').value.trim()||'5kg,10kg';cfg.products=$('#cfProducts').value.trim();fillProdList();const hadAI=!!(cfg.key||cfg.code);cfg.key=$('#cfKey').value.trim();cfg.code=$('#cfCode').value.trim().toUpperCase();$('#cfCode').value=cfg.code;if((cfg.key||cfg.code)&&!hadAI)cfg.ocr='ai';if(!cfg.key&&!cfg.code)cfg.ocr='local';cfg.model=$('#cfModel').value.trim()||'gemini-3.1-flash-lite';LS.set('gyul_cfg',cfg);ocrUI();toast(cfg.ocr==='ai'?'저장했습니다. 이제 사진은 구글 AI로 읽습니다':'설정을 저장했습니다');checkCode()}
-async function checkCode(){const el=$('#codeInfo');if(!cfg.code){el.textContent='';return}el.textContent='이용 코드 확인 중...';try{const j=await relay({code:cfg.code,action:'check'});el.textContent=j.ok?('사용 가능 · 이번 달 남은 사진 '+j.remaining+'장 (한도 '+j.limit+'장)'):('확인 실패: '+j.error);el.style.color=j.ok?'#2e7d32':'#c62828'}catch(e){el.textContent='인터넷 연결을 확인해 주세요';el.style.color='#c62828'}};
+async function checkCode(){if(cfg.code){$('#codeInfo').textContent='이용 코드 확인 중...';await verifyLic()}refreshLic()}
+$('#btnBuy2').onclick=showBuy;
 $('#btnBackup').onclick=()=>download(new Blob([JSON.stringify({v:1,orders,cfg:Object.assign({},cfg,{key:''})},null,1)],{type:'application/json'}),'찍으면명단_백업_'+today()+'.json');
 $('#btnRestore').onclick=()=>$('#fRestore').click();
 $('#fRestore').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.orders))throw 0;if(!confirm('백업의 '+j.orders.length+'건으로 바꿀까요? 지금 기록은 사라집니다.'))return;orders=j.orders;if(j.cfg)cfg=Object.assign(cfg,j.cfg,{key:cfg.key});LS.set('gyul_cfg',cfg);save();renderSet();toast('불러왔습니다')}catch(x){alert('백업 파일이 아닙니다')}e.target.value=''};
 $('#btnWipe').onclick=()=>{if(confirm('주문 기록을 모두 지울까요? 되돌릴 수 없습니다.')&&confirm('정말 지울까요?')){orders=[];save();toast('모두 지웠습니다')}};
 
 if(cfg.biz)setBiz(cfg.biz);else{setBiz(cfg.mode==='contact'?'contact':'farm');showBizPick()}
+(async()=>{if(cfg.code)await verifyLic();refreshLic();if(cfg.biz&&!licOK()&&$('#bizPick').classList.contains('hide'))showGate()})();
 (function(){try{const u=new URL(location.href);const c=(u.searchParams.get('code')||'').trim().toUpperCase();
-  if(/^MD-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(c)){cfg.code=c;if(!cfg.key)cfg.ocr='ai';LS.set('gyul_cfg',cfg);u.searchParams.delete('code');history.replaceState(null,'',u.pathname+(u.search||''));
+  if(/^(MD|TR)-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(c)){cfg.code=c;cfg.lic=null;if(!cfg.key)cfg.ocr='ai';LS.set('gyul_cfg',cfg);u.searchParams.delete('code');history.replaceState(null,'',u.pathname+(u.search||''));verifyLic().then(ok=>{refreshLic();if(ok)$('#gate').classList.add('hide')});
     setTimeout(()=>alert('이용 코드가 자동으로 들어갔습니다.\n\n이제 크롬 오른쪽 위 점 세 개를 누르고 「홈 화면에 추가」를 눌러 앱으로 설치하세요.'),300)}}catch(e){}})();
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js');
 </script>
