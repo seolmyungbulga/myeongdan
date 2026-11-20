@@ -135,7 +135,7 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
     <input type="file" id="fRestore" accept=".json,application/json" class="hide">
     <button class="big w" id="btnWipe" style="color:var(--rd)">주문 기록 모두 지우기</button>
   </div>
-  <div class="muted" style="text-align:center">찍으면 명단 시험판 0.5</div>
+  <div class="muted" style="text-align:center">찍으면 명단 시험판 0.6</div>
 </section>
 </main>
 <nav>
@@ -415,6 +415,9 @@ $('#fRestore').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{con
 $('#btnWipe').onclick=()=>{if(confirm('주문 기록을 모두 지울까요? 되돌릴 수 없습니다.')&&confirm('정말 지울까요?')){orders=[];save();toast('모두 지웠습니다')}};
 
 refresh();setMode(cfg.mode||'order');
+(function(){try{const u=new URL(location.href);const c=(u.searchParams.get('code')||'').trim().toUpperCase();
+  if(/^MD-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(c)){cfg.code=c;if(!cfg.key)cfg.ocr='ai';LS.set('gyul_cfg',cfg);u.searchParams.delete('code');history.replaceState(null,'',u.pathname+(u.search||''));
+    setTimeout(()=>alert('이용 코드가 자동으로 들어갔습니다.\n\n이제 크롬 오른쪽 위 점 세 개를 누르고 「홈 화면에 추가」를 눌러 앱으로 설치하세요.'),300)}}catch(e){}})();
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js');
 </script>
 </body>
