@@ -46,6 +46,9 @@ textarea{min-height:150px}
 #toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#333;color:#fff;padding:12px 18px;border-radius:12px;font-size:18px;display:none;z-index:21;max-width:90%}
 a.tel{color:#1565c0;font-weight:700;text-decoration:none}
 .hide{display:none}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:30;display:flex;align-items:center;justify-content:center;padding:16px}.ov.hide{display:none}
+.ovin{background:#fff;border-radius:16px;padding:18px;width:100%;max-width:440px;max-height:92vh;overflow:auto}
+.big small{font-size:15px;font-weight:500;opacity:.9}
 </style>
 </head>
 <body>
@@ -53,7 +56,7 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
 <main>
 <!-- 주문받기 -->
 <section id="v-in">
-  <div class="chips" id="modeBox" style="margin-top:0"><button class="chip" data-mode="order" style="flex:1;font-size:19px;padding:10px">택배 주문</button><button class="chip" data-mode="contact" style="flex:1;font-size:19px;padding:10px">연락처 정리</button></div>
+  <div class="card" id="bizBar" style="padding:10px 14px;margin-top:0;display:flex;align-items:center;justify-content:space-between"><div><span class="muted">지금 쓰는 용도</span><br><b id="bizName" style="font-size:20px"></b></div><button class="chip" id="btnBiz">바꾸기</button></div>
   <div class="muted" id="modeHelp" style="margin-bottom:4px"></div>
   <button class="big" id="btnCam">노트 사진 찍기</button>
   <button class="big w" id="btnAlbum">앨범에서 사진 고르기</button>
@@ -87,7 +90,7 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
 
 <!-- 명단 -->
 <section id="v-list" class="hide">
-  <div class="sum"><div>주문<b id="sOrd">0</b></div><div>상자<b id="sBox">0</b></div><div>입금 전<b id="sUnpaid">0</b></div><div>발송 전<b id="sUnsent">0</b></div></div>
+  <div class="sum"><div>주문<b id="sOrd">0</b></div><div><span id="sBoxLbl">상자</span><b id="sBox">0</b></div><div>입금 전<b id="sUnpaid">0</b></div><div>발송 전<b id="sUnsent">0</b></div></div>
   <input id="q" placeholder="이름·전화·주소로 찾기">
   <div class="chips" id="flt">
     <button class="chip on" data-f="all">전체</button><button class="chip" data-f="unpaid">입금 전</button><button class="chip" data-f="unsent">발송 전</button><button class="chip" data-f="sent">발송 끝</button>
@@ -113,12 +116,20 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
 
 <!-- 설정 -->
 <section id="v-set" class="hide">
-  <div class="card"><h3>보내는 분 (우리 농가)</h3>
-    <label>농가 이름</label><input id="cfName">
+  <div class="card"><h3>보내는 분 (우리 가게·농가)</h3>
+    <label>이름 (가게·농가 이름)</label><input id="cfName">
     <label>전화</label><input id="cfTel" inputmode="tel">
     <label>주소</label><input id="cfAddr">
+  </div>
+  <div class="card" id="farmSet"><h3>농산물 설정</h3>
     <label>파는 물건 이름</label><input id="cfItem" placeholder="예) 노지감귤">
     <label>상자 크기 (쉼표로 구분)</label><input id="cfSizes" placeholder="5kg,10kg">
+  </div>
+  <div class="card" id="prodSet"><h3>내 상품 목록</h3>
+    <div class="muted">한 줄에 하나씩 「상품 이름 가격」으로 적어 주세요. 사진·글에서 이 이름을 찾아 수량과 금액을 맞춰 넣습니다.</div>
+    <textarea id="cfProducts" placeholder="참기름 350ml 15000
+들기름 350ml 18000
+백설기 1판 30000"></textarea>
   </div>
   <div class="card"><h3>사진 읽는 방법</h3>
     <div class="chips"><button class="chip" data-ocr="local">폰 안에서 읽기</button><button class="chip" data-ocr="ai">구글 AI로 읽기</button></div>
@@ -135,12 +146,18 @@ a.tel{color:#1565c0;font-weight:700;text-decoration:none}
     <input type="file" id="fRestore" accept=".json,application/json" class="hide">
     <button class="big w" id="btnWipe" style="color:var(--rd)">주문 기록 모두 지우기</button>
   </div>
-  <div class="muted" style="text-align:center">찍으면 명단 시험판 0.6</div>
+  <div class="muted" style="text-align:center">찍으면 명단 시험판 0.7</div>
 </section>
 </main>
 <nav>
   <button data-v="in" class="on">주문받기</button><button data-v="list">명단</button><button data-v="out">보내기</button><button data-v="set">설정</button>
 </nav>
+<div id="bizPick" class="ov hide"><div class="ovin"><h2 style="margin:4px 0">무엇에 쓰세요?</h2><div class="muted">나중에 「바꾸기」로 언제든 바꿀 수 있습니다.</div>
+<button class="big" data-biz="farm">농산물 택배<br><small>감귤·사과처럼 상자 단위 주문</small></button>
+<button class="big" data-biz="goods">일반 상품 판매<br><small>상품·수량·금액이 있는 주문</small></button>
+<button class="big" data-biz="food">반찬·떡·수제품 주문<br><small>받을 날짜까지 함께 관리</small></button>
+<button class="big w" data-biz="contact">명단·연락처만<br><small>교회·모임·동창회 명단 정리</small></button></div></div>
+<datalist id="prodList"></datalist>
 <div id="busy"><div id="busyMsg">읽는 중입니다</div><div id="busySub" style="font-size:16px;margin-top:8px;font-weight:500"></div></div>
 <div id="toast"></div>
 
@@ -197,7 +214,7 @@ function splitAddr(s){
 function parseText(raw){
   const lines=fixDigits(raw).replace(/\r/g,'').split('\n').map(l=>l.trim());
   const out=[];let cur=null;
-  const newCur=()=>{cur={id:uid(),name:'',phone:'',addr:'',size:'',qty:0,memo:'',src:''};out.push(cur)};
+  const newCur=()=>{cur={id:uid(),name:'',phone:'',addr:'',size:'',qty:0,memo:'',src:'',items:[],due:''};out.push(cur)};
   const has=k=>cur&&cur[k];
   for(let line of lines){
     if(!line){if(cur&&cur.phone&&cur.addr)cur=null;continue}
@@ -208,12 +225,14 @@ function parseText(raw){
     s=s.replace(/^(주소|배송지|받는\s*곳)\s*[:：]\s*/,'').replace(/^(연락처|전화|핸드폰|휴대폰|폰|HP|hp|Tel|tel)\s*[:：]?\s*/,'').replace(/^(수량|상품|품목)\s*[:：]\s*/,'');
     const pm=s.match(PHONE)||s.match(PHONE2);
     const am=ADDR_RE.test(s);
+    if(isFood()&&cur&&!pm&&!am){const s2=pickDue(s,cur);if(s2!==s){s=s2.replace(/\s{2,}/g,' ').trim();if(!s)continue}}
     if(!pm&&!am&&/(명단|목록|리스트|주문\s*(목록|명단|장)|모임|구역|회원|동창|^\d{1,2}\s*[\/.월]\s*\d{1,2}\s*일?)/.test(s)&&!(cur&&cur.phone&&!cur.name))continue;
     if(pm&&has('phone'))newCur();
     if(am&&has('addr')&&!pm)newCur();
     if(!cur)newCur();
     if(pm){cur.phone=normPhone(pm);s=s.replace(pm[0],' ')}
-    s=pickQty(s,cur);
+    if(isFood())s=pickDue(s,cur);
+    s=isFarm()?pickQty(s,cur):(useItems()?pickItems(s,cur):s);
     s=s.replace(/^(받는\s*분|받는\s*사람|수령인|이름|성함)\s*[:：]?\s*/,'');
     s=s.replace(/\s{2,}/g,' ').trim();
     if(!s)continue;
@@ -228,9 +247,10 @@ function parseText(raw){
     const m2=s.match(/^([가-힣]{2,4})(님|씨)?\s+(.*)$/);
     if(m2&&!cur.name&&!cur.addr&&!/(주문|감귤|귤|한라봉|천혜향|레드향|입금|부탁|안녕)/.test(m2[1])){cur.name=m2[1];s=m2[3]}
     if(cur.addr&&!cur.phone&&/^\d|동|호|층|아파트|빌라|번지/.test(s)&&s.length<30){cur.addr+=' '+s;continue}
+    s=s.replace(/^[\s,.·/]+|[\s,.·/]+$/g,'');
     if(s)cur.memo=(cur.memo+' '+s).trim();
   }
-  return out.filter(o=>o.name||o.phone||o.addr).map(o=>{if(!o.qty)o.qty=1;if(!o.size&&sizes().length===1)o.size=sizes()[0];return o});
+  return out.filter(o=>o.name||o.phone||o.addr).map(o=>{if(!o.qty)o.qty=1;if(useItems()){priceItems(o);delete o.size}else{delete o.items;if(!o.size&&isFarm()&&sizes().length===1)o.size=sizes()[0]}return o});
 }
 
 /* ---------- 사진 읽기 ---------- */
@@ -249,8 +269,8 @@ async function ocrAI(img){
   if(!cfg.key&&!cfg.code){busy(false);show('set');throw new Error('설정에서 이용 코드를 먼저 넣어 주세요');}
   busy(true,'구글 AI가 읽는 중입니다','보통 10초, 길면 30초쯤 걸립니다');
   const b64=toCanvas(img,1600,false).toDataURL('image/jpeg',.85).split(',')[1];
-  if(cfg.code&&!cfg.key){const j=await relay({code:cfg.code,mode:cfg.mode,image:b64});if(!j.ok)throw new Error(j.error||'읽지 못했습니다');const arr=JSON.parse(String(j.text).replace(/^```json|```$/g,''));lastRemain=j.remaining;return {raw:j.text,list:arr.map(mapAI)}}
-  const prompt=cfg.mode==='contact'?'이 사진은 손으로 적거나 인쇄한 사람 명단·연락처 메모입니다. 사람마다 이름, 전화번호, 주소, 기타 메모를 뽑아 주세요. 제목이나 날짜 줄은 사람으로 넣지 마세요. 우편물·택배 송장·주소 라벨처럼 보내는 사람과 받는 사람이 함께 적혀 있으면 받는 사람(받는 분, 수취인)만 한 건으로 뽑고, 보내는 사람은 memo에 \"보내는 분: 이름\"으로만 적으세요. 우편번호는 주소 맨 앞에 넣지 말고 빼세요. 읽기 어려운 글자는 추측하지 말고 그 칸에 ? 를 넣으세요. JSON 배열로만 답하세요: [{"name":"","phone":"","addr":"","size":"","qty":1,"memo":""}]':'이 사진은 한국 농가가 택배 주문을 손으로 적어 둔 노트나 메모입니다. 주문 한 건마다 받는 분 이름, 전화번호, 주소, 상자 크기(예: 5kg, 10kg), 상자 수, 기타 메모(보내는 분, 입금 여부 등)를 뽑아 주세요. 우편물·택배 송장·주소 라벨처럼 보내는 사람과 받는 사람이 함께 적혀 있으면 받는 사람(받는 분, 수취인)만 한 건으로 뽑고, 보내는 사람은 memo에 \"보내는 분: 이름\"으로만 적으세요. 우편번호는 주소 맨 앞에 넣지 말고 빼세요. 읽기 어려운 글자는 추측하지 말고 그 칸에 ? 를 넣으세요. 줄을 그어 지운 주문은 빼세요. JSON 배열로만 답하세요: [{"name":"","phone":"","addr":"","size":"","qty":1,"memo":""}]';
+  if(cfg.code&&!cfg.key){const j=await relay({code:cfg.code,mode:BIZ[cfg.biz].server,hint:aiHint(),image:b64});if(!j.ok)throw new Error(j.error||'읽지 못했습니다');const arr=JSON.parse(String(j.text).replace(/^```json|```$/g,''));lastRemain=j.remaining;return {raw:j.text,list:arr.map(mapAI)}}
+  const prompt=aiPrompt();
   const body=JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],generationConfig:{responseMimeType:'application/json',temperature:0}});
   let r,j;
   for(let t=0;t<4;t++){r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(cfg.model)+':generateContent?key='+encodeURIComponent(cfg.key),{method:'POST',headers:{'Content-Type':'application/json'},body});j=await r.json();
@@ -261,7 +281,10 @@ async function ocrAI(img){
   return {raw:t,list:arr.map(mapAI)};
 }
 let lastRemain=null;
-function mapAI(o){return ({id:uid(),name:o.name||'',phone:o.phone||'',addr:o.addr||'',size:(()=>{const s=String(o.size||'').replace(/\s/g,'').replace(/키로|킬로|㎏/,'kg');return /^\d+(\.\d+)?kg$/i.test(s)?s.toLowerCase():''})(),qty:+o.qty||1,memo:o.memo||''})}
+function mapAI(o){const x={id:uid(),name:o.name||'',phone:o.phone||'',addr:o.addr||'',memo:o.memo||'',qty:+o.qty||1,due:normDue(o.due)};
+  if(useItems()){x.items=(Array.isArray(o.items)?o.items:[]).filter(it=>it&&it.prod&&it.prod!=='?').map(it=>({prod:String(it.prod),qty:+it.qty||1,price:0}));priceItems(x)}
+  else x.size=(()=>{const s=String(o.size||'').replace(/\s/g,'').replace(/키로|킬로|㎏/,'kg');return /^\d+(\.\d+)?kg$/i.test(s)?s.toLowerCase():''})();
+  return x}
 let lastImg=null;
 async function handlePhoto(file,force){
   if(!file&&!force)return;
@@ -287,16 +310,86 @@ $('#btnPaste').onclick=()=>{$('#pasteBox').classList.toggle('hide');$('#pasteTxt
 $('#btnParse').onclick=()=>{$('#btnAiRetry').classList.add('hide');const l=parseText($('#pasteTxt').value);$('#photo').classList.add('hide');$('#rawBox').classList.add('hide');startReview(l,'글에서 읽었습니다.')};
 $('#btnManual').onclick=()=>{$('#btnAiRetry').classList.add('hide');$('#photo').classList.add('hide');$('#rawBox').classList.add('hide');startReview([{id:uid(),name:'',phone:'',addr:'',size:sizes()[0]||'',qty:1,memo:''}],'칸을 채워 주세요.')};
 
-/* ---------- 모드 ---------- */
-function setMode(m){cfg.mode=m;LS.set('gyul_cfg',cfg);$('#hdrsum').style.display=m==='order'?'':'none';document.querySelectorAll('[data-mode]').forEach(c=>c.classList.toggle('on',c.dataset.mode===m));
-  $('#modeHelp').textContent=m==='order'?'받는 분·주소·상자 수를 정리해 영업소·택배로 넘깁니다.':'이름·전화·주소를 정리해 카톡, 폰 메모, 주소록에 저장합니다.';
-  $('#btnCam').textContent=m==='order'?'노트 사진 찍기':'명단·메모 사진 찍기';
-  $('#btnPaste').textContent=m==='order'?'카톡·문자 주문 글 붙여넣기':'카톡·문자 글 붙여넣기';
-  if(pending.length)renderReview()}
-document.querySelectorAll('[data-mode]').forEach(c=>c.onclick=()=>setMode(c.dataset.mode));
+/* ---------- 업종 ---------- */
+const BIZ={
+  farm:{name:'농산물 택배',help:'받는 분·주소·상자 크기·상자 수를 정리해 영업소·택배로 넘깁니다.',cam:'주문 노트 사진 찍기',paste:'카톡·문자 주문 글 붙여넣기',ph:'예) 김영희 010-1234-5678 서울시 강서구 화곡로 123 101동 202호 10kg 2박스',server:'order'},
+  goods:{name:'일반 상품 판매',help:'받는 분·주소와 주문 상품·수량·금액을 정리합니다.',cam:'주문 노트 사진 찍기',paste:'카톡·문자 주문 글 붙여넣기',ph:'예) 김영희 010-1234-5678 서울시 강서구 화곡로 123 참기름 2병 들기름 1병',server:'goods'},
+  food:{name:'반찬·떡·수제품 주문',help:'주문 상품·수량·금액과 받을 날짜까지 정리합니다.',cam:'주문 노트 사진 찍기',paste:'카톡·문자 주문 글 붙여넣기',ph:'예) 김영희 010-1234-5678 백설기 2판 11/25 수령',server:'food'},
+  contact:{name:'명단·연락처 정리',help:'이름·전화·주소를 정리해 카톡, 폰 메모, 주소록에 저장합니다.',cam:'명단·메모 사진 찍기',paste:'카톡·문자 글 붙여넣기',ph:'예) 홍길동 010-1111-2222 서귀포시 대천동 123',server:'contact'}
+};
+const isFarm=()=>cfg.biz==='farm', useItems=()=>cfg.biz==='goods'||cfg.biz==='food', isFood=()=>cfg.biz==='food';
+const won=n=>n?Number(n).toLocaleString('ko-KR')+'원':'';
+function products(){return String(cfg.products||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const m=l.match(/^(.*?)[\s,]+([\d,]{2,})\s*원?$/);return m&&m[1].trim()?{name:m[1].trim(),price:+m[2].replace(/,/g,'')}:{name:l,price:0}})}
+function findProd(name){const n=String(name||'').replace(/\s/g,'');if(!n)return null;const P=products();return P.find(p=>p.name.replace(/\s/g,'')===n)||P.find(p=>{const q=p.name.replace(/\s/g,'');return q&&(n.includes(q)||q.includes(n))})||null}
+function priceItems(o){(o.items||[]).forEach(it=>{const p=findProd(it.prod);if(p){if(!it.price)it.price=p.price;if(p.name.replace(/\s/g,'').length>=String(it.prod).replace(/\s/g,'').length)it.prod=p.name}});return o}
+function hasItems(o){return Array.isArray(o.items)&&o.items.some(it=>it&&it.prod)}
+function amountOf(o){return hasItems(o)?o.items.reduce((a,it)=>a+(+it.price||0)*(+it.qty||0),0):0}
+function qtyOf(o){return hasItems(o)?o.items.reduce((a,it)=>a+(+it.qty||0),0):(+o.qty||0)}
+function itemsText(o){if(hasItems(o))return o.items.filter(it=>it.prod).map(it=>it.prod+' ×'+(it.qty||1)).join(', ');return o.size?((cfg.item||'')+' '+o.size+' '+(o.qty||1)+'상자').trim():''}
+function orderLine(o){const t=itemsText(o);if(!t)return '';return t+(amountOf(o)?' / '+won(amountOf(o)):'')+(o.due?' / 받을 날 '+o.due:'')}
+const UNIT='개|병|통|팩|박스|상자|세트|봉지|봉|kg|키로|그릇|판|줄|되|말|마리|단|포기|장|권|벌|켤레';
+function pickItems(s,o){
+  if(!o.items)o.items=[];let m;
+  const core=n=>n.replace(/\s*\d+(?:\.\d+)?\s*(?:kg|g|ml|l|L|리터|근|판|포|입|개입|매|구|알|인분|팩)$/i,'').trim();
+  for(const p of products())for(const nmRaw of [...new Set([p.name,core(p.name)])].filter(x=>x&&x.length>=2)){
+    const nm=nmRaw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s*');
+    const re=new RegExp(nm+'\\s*(?:[x×*]\\s*)?(\\d+|'+Object.keys(KNUM).join('|')+')?\\s*('+UNIT+')?','i');
+    let guard=0;
+    while(guard++<5&&(m=s.match(re))&&m[0].trim()){const q=m[1]?(KNUM[m[1]]||+m[1]):1;o.items.push({prod:p.name,qty:q,price:p.price});s=s.replace(m[0],' ')}
+  }
+  const KN=Object.keys(KNUM).join('|');
+  const SZ=new RegExp('([가-힣A-Za-z][가-힣A-Za-z0-9]{0,15})\\s*(\\d+(?:\\.\\d+)?\\s*(?:kg|g|ml|l|L|리터|근|키로))(?![가-힣])\\s*(?:[x×*]\\s*)?(?:(\\d+|'+KN+')\\s*('+UNIT+')?)?','i');
+  let g2=0;
+  while(g2++<10&&(m=s.match(SZ))){o.items.push({prod:m[1]+' '+m[2].replace(/\s/g,'').replace('키로','kg'),qty:m[3]?(KNUM[m[3]]||+m[3]):1,price:0});s=s.replace(m[0],' ')}
+  const GEN=new RegExp('([가-힣A-Za-z][가-힣A-Za-z0-9]{0,15}(?:\\s*\\d+(?:포|입|개입|매|구|알|인분|g|ml))?)\\s*(\\d+|'+Object.keys(KNUM).join('|')+')\\s*('+UNIT+')(?![가-힣])');
+  let guard=0;
+  while(guard++<10&&(m=s.match(GEN))){if(/^(합계|총|모두|전부)$/.test(m[1]))break;o.items.push({prod:m[1],qty:KNUM[m[2]]||+m[2],price:0});s=s.replace(m[0],' ')}
+  return s;
+}
+function normDue(v){v=String(v||'').trim();if(/^\d{4}-\d{2}-\d{2}$/.test(v))return v;const m=v.match(/(\d{1,2})\s*[\/.월\-]\s*(\d{1,2})/);if(!m)return '';const y=new Date().getFullYear();return y+'-'+String(m[1]).padStart(2,'0')+'-'+String(m[2]).padStart(2,'0')}
+function pickDue(s,o){const m=s.match(/(?:^|[^\d])(\d{1,2})\s*[\/.월]\s*(\d{1,2})\s*일?\s*(까지|수령|픽업|배송|도착|받을|받음)?(?=[^\d]|$)/);if(m&&+m[1]>=1&&+m[1]<=12&&+m[2]>=1&&+m[2]<=31){o.due=normDue(m[1]+'/'+m[2]);s=s.replace(m[0].replace(/^[^\d]/,''),' ')}return s}
+
+function setBiz(b){if(!BIZ[b])b='farm';cfg.biz=b;cfg.mode=b==='contact'?'contact':'order';LS.set('gyul_cfg',cfg);
+  $('#bizName').textContent=BIZ[b].name;$('#modeHelp').textContent=BIZ[b].help;$('#btnCam').textContent=BIZ[b].cam;$('#btnPaste').textContent=BIZ[b].paste;$('#pasteTxt').placeholder=BIZ[b].ph;
+  $('#hdrsum').style.display=b==='contact'?'none':'';fillProdList();refresh();if(pending.length)renderReview()}
+function fillProdList(){$('#prodList').innerHTML=products().map(p=>'<option value="'+esc(p.name)+'">').join('')}
+function showBizPick(){$('#bizPick').classList.remove('hide')}
+$('#btnBiz').onclick=showBizPick;
+document.querySelectorAll('[data-biz]').forEach(b=>b.onclick=()=>{$('#bizPick').classList.add('hide');setBiz(b.dataset.biz);
+  if(useItems()&&!products().length)setTimeout(()=>{if(confirm('「내 상품 목록」을 넣어 두면 상품 이름과 가격을 알아서 맞춰 줍니다. 지금 넣으시겠어요?'))show('set')},200);else toast(BIZ[b.dataset.biz].name+'(으)로 바꿨습니다')});
+
+/* 주문 상품 입력칸 (일반 상품·반찬) */
+function itemsHTML(o,i,pre){
+  if(!o.items||!o.items.length)o.items=[{prod:'',qty:1,price:0}];
+  return '<label>주문 상품</label>'+o.items.map((it,j)=>'<div style="border:1px solid #eee;border-radius:10px;padding:8px;margin-bottom:8px"><input list="prodList" data-ik="prod" data-i="'+i+'" data-j="'+j+'" class="'+pre+'i'+(it.prod?'':' err')+'" value="'+esc(it.prod)+'" placeholder="상품 이름"><div class="row" style="gap:6px;align-items:flex-end;margin-top:6px">'+
+    '<div style="flex:1"><span class="muted">수량</span><input type="number" min="1" inputmode="numeric" data-ik="qty" data-i="'+i+'" data-j="'+j+'" class="'+pre+'i" value="'+(it.qty||1)+'"></div>'+
+    '<div style="flex:1.5"><span class="muted">단가(원)</span><input type="number" min="0" inputmode="numeric" data-ik="price" data-i="'+i+'" data-j="'+j+'" class="'+pre+'i" value="'+(it.price||'')+'" placeholder="단가"></div>'+
+    '<button class="chip" data-irm="'+i+':'+j+'" style="flex:0 0 auto;padding:8px 12px">빼기</button></div></div>').join('')+
+    '<div class="btns" style="margin-top:0"><button data-iadd="'+i+'">+ 상품 추가</button></div><div style="margin-top:6px">합계 <b class="sumAmt" data-i="'+i+'">'+(won(amountOf(o))||'0원')+'</b></div>'+
+    (isFood()?'<label>받을 날</label><input type="date" data-k="due" data-i="'+i+'" class="'+pre+'" value="'+esc(o.due||'')+'">':'');
+}
+function bindItems(box,pre,getO,rerender){
+  box.querySelectorAll('.'+pre+'i').forEach(el=>{
+    el.oninput=()=>{const o=getO(+el.dataset.i),it=o.items[+el.dataset.j];const k=el.dataset.ik;it[k]=k==='prod'?el.value:+el.value;el.classList.remove('err');const s=box.querySelector('.sumAmt[data-i="'+el.dataset.i+'"]');if(s)s.textContent=won(amountOf(o))||'0원'};
+    if(el.dataset.ik==='prod')el.onchange=()=>{const o=getO(+el.dataset.i),it=o.items[+el.dataset.j];const p=findProd(it.prod);if(p&&!it.price){it.price=p.price;rerender()}};
+  });
+  box.querySelectorAll('[data-iadd]').forEach(b=>b.onclick=()=>{getO(+b.dataset.iadd).items.push({prod:'',qty:1,price:0});rerender()});
+  box.querySelectorAll('[data-irm]').forEach(b=>b.onclick=()=>{const [i,j]=b.dataset.irm.split(':').map(Number);const o=getO(i);o.items.splice(j,1);if(!o.items.length)o.items.push({prod:'',qty:1,price:0});rerender()});
+}
+
+/* AI 안내문 (내 키를 직접 쓸 때) */
+function aiPrompt(){
+  const tail=' 우편물·택배 송장·주소 라벨처럼 보내는 사람과 받는 사람이 함께 적혀 있으면 받는 사람(받는 분, 수취인)만 한 건으로 뽑고, 보내는 사람은 memo에 "보내는 분: 이름"으로만 적으세요. 우편번호는 주소에 넣지 마세요. 읽기 어려운 글자는 추측하지 말고 그 칸에 ? 를 넣으세요. 줄을 그어 지운 것은 빼세요.';
+  const hint=useItems()&&products().length?' 이 판매자의 상품 목록: '+products().map(p=>p.name).join(', ').slice(0,800)+'. 상품 이름은 이 목록에 있는 이름으로 맞춰 적으세요.':'';
+  if(cfg.biz==='contact')return '이 사진은 손으로 적거나 인쇄한 사람 명단·연락처 메모입니다. 사람마다 이름, 전화번호, 주소, 기타 메모를 뽑아 주세요. 제목이나 날짜 줄은 사람으로 넣지 마세요.'+tail+' JSON 배열로만 답하세요: [{"name":"","phone":"","addr":"","memo":""}]';
+  if(useItems())return '이 사진은 한국의 작은 가게나 개인 판매자가 손님 주문을 손으로 적어 둔 노트나 메모입니다. 주문 한 건(받는 사람 한 명)마다 받는 분 이름, 전화번호, 주소, 주문한 상품과 수량들, '+(isFood()?'받을 날짜(월/일), ':'')+'기타 메모(보내는 분, 입금 여부, 요청 사항 등)를 뽑아 주세요.'+hint+tail+' JSON 배열로만 답하세요: [{"name":"","phone":"","addr":"","items":[{"prod":"","qty":1}],"due":"","memo":""}]';
+  return '이 사진은 한국 농가가 택배 주문을 손으로 적어 둔 노트나 메모입니다. 주문 한 건마다 받는 분 이름, 전화번호, 주소, 상자 크기(예: 5kg, 10kg), 상자 수, 기타 메모(보내는 분, 입금 여부 등)를 뽑아 주세요.'+tail+' JSON 배열로만 답하세요: [{"name":"","phone":"","addr":"","size":"","qty":1,"memo":""}]';
+}
+function aiHint(){return useItems()&&products().length?products().map(p=>p.name).join(', ').slice(0,800):''}
+
 
 /* ---------- 저장 방법 3가지 ---------- */
-function plainText(L,order){return L.map((o,i)=>(L.length>1?(i+1)+'. ':'')+(o.name||'(이름 없음)')+(o.phone?' / '+o.phone:'')+(o.addr?'\n   '+o.addr:'')+(order&&o.size?'\n   '+(cfg.item||'')+' '+o.size+' '+(o.qty||1)+'상자':'')+(o.memo?'\n   '+o.memo:'')).join('\n\n')}
+function plainText(L,order){return L.map((o,i)=>(L.length>1?(i+1)+'. ':'')+(o.name||'(이름 없음)')+(o.phone?' / '+o.phone:'')+(o.addr?'\n   '+o.addr:'')+(order&&orderLine(o)?'\n   '+orderLine(o):'')+(o.memo?'\n   '+o.memo:'')).join('\n\n')}
 async function shareText(t,title){if(navigator.share){try{await navigator.share({title,text:t});return}catch(e){if(e.name==='AbortError')return}}
   try{await navigator.clipboard.writeText(t);toast('글을 복사했습니다. 붙여넣기 하세요')}catch(e){prompt('아래 글을 복사하세요',t)}}
 function vcfEsc(s){return String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/[,;]/g,m=>'\\'+m)}
@@ -321,18 +414,20 @@ function startReview(list,msg){
 }
 function sizeOpts(v){const s=sizes();if(v&&!s.includes(v))s.push(v);return '<option value="">선택</option>'+s.map(x=>'<option'+(x===v?' selected':'')+'>'+esc(x)+'</option>').join('')}
 function formHTML(o,i,pre,contact){
+  const IT=!contact&&(useItems()||hasItems(o));
   const bad=k=>(!o[k]||/\?/.test(o[k]))?(contact&&k==='addr'?'':' err'):'';
   const phoneBad=(!o.phone||!/^0\d{1,2}-?\d{3,4}-?\d{4}$/.test(o.phone))?' err':'';
-  return `<label>받는 분</label><input data-k="name" data-i="${i}" class="${pre}${bad('name')}" value="${esc(o.name)}">
+  return `<label>${contact?'이름':'받는 분'}</label><input data-k="name" data-i="${i}" class="${pre}${bad('name')}" value="${esc(o.name)}">
   <label>전화</label><input data-k="phone" data-i="${i}" inputmode="tel" class="${pre}${phoneBad}" value="${esc(o.phone)}">
   <label>주소</label><textarea data-k="addr" data-i="${i}" class="${pre}${bad('addr')}" style="min-height:70px">${esc(o.addr)}</textarea>
-  <div class="row${contact?' hide':''}"><div><label>상자 크기</label><select data-k="size" data-i="${i}" class="${pre}${o.size?'':' err'}">${sizeOpts(o.size)}</select></div>
-  <div><label>상자 수</label><input data-k="qty" data-i="${i}" type="number" min="1" inputmode="numeric" class="${pre}" value="${o.qty||1}"></div></div>
+  ${contact?'':IT?itemsHTML(o,i,pre):`<div class="row"><div><label>상자 크기</label><select data-k="size" data-i="${i}" class="${pre}${o.size?'':' err'}">${sizeOpts(o.size)}</select></div>
+  <div><label>상자 수</label><input data-k="qty" data-i="${i}" type="number" min="1" inputmode="numeric" class="${pre}" value="${o.qty||1}"></div></div>`}
   <label>${contact?'메모':'메모 (보내는 분, 입금자 등)'}</label><input data-k="memo" data-i="${i}" class="${pre}" value="${esc(o.memo)}">`;
 }
 function renderReview(){
-  $('#reviewList').innerHTML=pending.map((o,i)=>`<div class="card"><h3>${i+1}번 주문</h3>${formHTML(o,i,'rv',cfg.mode==='contact')}<div class="btns"><button class="del" data-rm="${i}">이 건 빼기</button></div></div>`).join('');
+  $('#reviewList').innerHTML=pending.map((o,i)=>`<div class="card"><h3>${i+1}번${cfg.mode==='contact'?'':' 주문'}</h3>${formHTML(o,i,'rv',cfg.mode==='contact')}<div class="btns"><button class="del" data-rm="${i}">이 건 빼기</button></div></div>`).join('');
   $$('#reviewList .rv').forEach(el=>el.oninput=el.onchange=()=>{const o=pending[el.dataset.i];o[el.dataset.k]=el.dataset.k==='qty'?+el.value:el.value.trim();el.classList.remove('err')});
+  bindItems($('#reviewList'),'rv',i=>pending[i],renderReview);
   $$('#reviewList [data-rm]').forEach(b=>b.onclick=()=>{pending.splice(+b.dataset.rm,1);if(!pending.length)return closeReview();renderReview()});
 }
 function closeReview(){pending=[];$('#reviewBox').classList.add('hide');$('#photo').classList.add('hide')}
@@ -340,24 +435,24 @@ $('#btnCancel').onclick=closeReview;
 $('#btnSaveAll').onclick=()=>{
   const now=today();let dup=0;
   pending.forEach(o=>{if(orders.some(x=>x.phone&&x.phone===o.phone&&x.addr===o.addr&&!x.sent&&x.size===o.size))dup++;
-    orders.unshift({id:o.id||uid(),date:now,name:o.name,phone:o.phone,addr:o.addr,size:o.size,qty:+o.qty||1,memo:o.memo,paid:false,sent:false,inv:''})});
+    orders.unshift({id:o.id||uid(),date:now,name:o.name,phone:o.phone,addr:o.addr,size:o.size,qty:+o.qty||1,items:hasItems(o)?o.items.filter(it=>it.prod).map(it=>({prod:it.prod,qty:+it.qty||1,price:+it.price||0})):undefined,due:o.due||'',memo:o.memo,paid:false,sent:false,inv:''})});
   const n=pending.length;closeReview();$('#pasteTxt').value='';save();
   toast(n+'건을 명단에 넣었습니다'+(dup?' (같은 주문이 이미 '+dup+'건 있어요. 명단에서 확인해 주세요)':''));show('list');
 };
 
 /* ---------- 명단 ---------- */
-function refresh(){const unsent=orders.filter(o=>!o.sent);$('#hdrsum').textContent='발송 전 '+unsent.length+'건 · '+unsent.reduce((a,o)=>a+(+o.qty||0),0)+'상자'}
+function refresh(){const unsent=orders.filter(o=>!o.sent);$('#hdrsum').textContent='발송 전 '+unsent.length+'건'+(isFarm()?' · '+unsent.reduce((a,o)=>a+qtyOf(o),0)+'상자':(unsent.length?' · '+(won(unsent.reduce((a,o)=>a+amountOf(o),0))||''):''))}
 $('#q').oninput=renderList;
 $$('#flt .chip').forEach(c=>c.onclick=()=>{filter=c.dataset.f;$$('#flt .chip').forEach(x=>x.classList.toggle('on',x===c));renderList()});
 function renderList(){
-  $('#sOrd').textContent=orders.length;$('#sBox').textContent=orders.reduce((a,o)=>a+(+o.qty||0),0);
+  $('#sOrd').textContent=orders.length;$('#sBoxLbl').textContent=isFarm()?'상자':'수량';$('#sBox').textContent=orders.reduce((a,o)=>a+qtyOf(o),0);
   $('#sUnpaid').textContent=orders.filter(o=>!o.paid).length;$('#sUnsent').textContent=orders.filter(o=>!o.sent).length;
   const q=$('#q').value.trim().replace(/-/g,'');
   let L=orders.filter(o=>filter==='all'||(filter==='unpaid'&&!o.paid)||(filter==='unsent'&&!o.sent)||(filter==='sent'&&o.sent));
-  if(q)L=L.filter(o=>(o.name+o.phone.replace(/-/g,'')+o.addr+o.memo).includes(q));
+  if(q)L=L.filter(o=>(o.name+o.phone.replace(/-/g,'')+o.addr+o.memo+itemsText(o)).includes(q));
   if(!L.length){$('#list').innerHTML='<div class="card muted">주문이 없습니다.</div>';return}
   $('#list').innerHTML=L.map(o=>`<div class="card" data-id="${o.id}">
-    <h3>${esc(o.name||'(이름 없음)')} <span class="muted">${esc(o.size)} × ${o.qty}상자</span></h3>
+    <h3>${esc(o.name||'(이름 없음)')} <span class="muted">${esc(itemsText(o))}</span></h3>${amountOf(o)||o.due?`<div><b>${won(amountOf(o))}</b>${o.due?` <span class="muted">받을 날 ${esc(o.due)}</span>`:''}</div>`:''}
     <div><span class="tag ${o.paid?'t-ok':'t-no'}">${o.paid?'입금됨':'입금 전'}</span><span class="tag ${o.sent?'t-ok':'t-no'}">${o.sent?'발송함':'발송 전'}</span><span class="muted">${esc(o.date)}</span></div>
     <div><a class="tel" href="tel:${esc(o.phone)}">${esc(o.phone)}</a></div>
     <div>${esc(o.addr)}</div>${o.memo?`<div class="muted">${esc(o.memo)}</div>`:''}${o.inv?`<div class="muted">송장 ${esc(o.inv)}</div>`:''}
@@ -372,30 +467,33 @@ function listAct(id,a,b){
   else if(a==='inv'){const v=prompt('송장번호를 넣어 주세요',o.inv||'');if(v!==null){o.inv=v.trim();if(o.inv)o.sent=true;save();renderList()}}
   else if(a==='del'){if(confirm((o.name||'이 주문')+' 주문을 지울까요?')){orders=orders.filter(x=>x!==o);save();renderList()}}
   else if(a==='vcf'){saveContacts([o])}
-  else if(a==='again'){orders.unshift(Object.assign({},o,{id:uid(),date:today(),paid:false,sent:false,inv:''}));save();toast(o.name+' 님 주문을 새로 넣었습니다');renderList()}
+  else if(a==='again'){orders.unshift(Object.assign({},o,{id:uid(),date:today(),paid:false,sent:false,inv:'',due:'',items:hasItems(o)?o.items.map(it=>({...it})):undefined}));save();toast(o.name+' 님 주문을 새로 넣었습니다');renderList()}
   else if(a==='edit'){const ed=b.closest('.card').querySelector('.ed');if(ed.innerHTML){ed.innerHTML='';return}
-    ed.innerHTML=formHTML(o,0,'le')+'<button class="big g" style="padding:12px">고친 것 저장</button>';
-    ed.querySelector('button').onclick=()=>{ed.querySelectorAll('.le').forEach(el=>{o[el.dataset.k]=el.dataset.k==='qty'?+el.value:el.value.trim()});save();renderList();toast('저장했습니다')}}
+    const drawEd=()=>{ed.innerHTML=formHTML(o,0,'le',cfg.mode==='contact')+'<button class="big g edSave" style="padding:12px">고친 것 저장</button>';bindItems(ed,'le',()=>o,drawEd);
+    ed.querySelector('.edSave').onclick=()=>{ed.querySelectorAll('.le').forEach(el=>{o[el.dataset.k]=el.dataset.k==='qty'?+el.value:el.value.trim()});save();renderList();toast('저장했습니다')}};drawEd()}
 }
 
 /* ---------- 보내기 ---------- */
 function outList(){return orders.filter(o=>!o.sent&&(!outPaidOnly||o.paid)).slice().reverse()}
-function renderOut(){const L=outList();const by={};L.forEach(o=>by[o.size||'크기 미정']=(by[o.size||'크기 미정']||0)+(+o.qty||0));
-  $('#outInfo').innerHTML=L.length?(L.length+'건 · '+Object.entries(by).map(([k,v])=>esc(k)+' '+v+'상자').join(', ')):'보낼 주문이 없습니다';}
+function renderOut(){const L=outList();if(!L.length){$('#outInfo').innerHTML='보낼 주문이 없습니다';return}
+  if(L.some(hasItems)||!isFarm()){$('#outInfo').innerHTML=L.length+'건 · 수량 '+L.reduce((a,o)=>a+qtyOf(o),0)+(L.reduce((a,o)=>a+amountOf(o),0)?' · '+won(L.reduce((a,o)=>a+amountOf(o),0)):'');return}
+  const by={};L.forEach(o=>by[o.size||'크기 미정']=(by[o.size||'크기 미정']||0)+(+o.qty||0));$('#outInfo').innerHTML=L.length+'건 · '+Object.entries(by).map(([k,v])=>esc(k)+' '+v+'상자').join(', ');}
 $('#oPaidOnly').onclick=()=>{outPaidOnly=true;$('#oPaidOnly').classList.add('on');$('#oAll').classList.remove('on');renderOut()};
 $('#oAll').onclick=()=>{outPaidOnly=false;$('#oAll').classList.add('on');$('#oPaidOnly').classList.remove('on');renderOut()};
-const COLS=['번호','받는분','받는분 전화','받는분 주소','상품명','상자 크기','상자 수','메모','보내는분','보내는분 전화','보내는분 주소'];
-function rows(L){return L.map((o,i)=>[i+1,o.name,o.phone,o.addr,cfg.item,o.size,o.qty,o.memo,cfg.name,cfg.tel,cfg.addr])}
-function fname(ext){return (cfg.name||'귤주문')+'_발송명단_'+today()+'.'+ext}
-function makeXlsx(L){const ws=XLSX.utils.aoa_to_sheet([COLS,...rows(L)]);ws['!cols']=[{wch:5},{wch:10},{wch:15},{wch:45},{wch:10},{wch:8},{wch:7},{wch:20},{wch:10},{wch:15},{wch:30}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'발송명단');return XLSX.write(wb,{bookType:'xlsx',type:'array'})}
-function makeCsv(L){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';return '\ufeff'+[COLS,...rows(L)].map(r=>r.map(q).join(',')).join('\r\n')}
+const COLS_F=['번호','받는분','받는분 전화','받는분 주소','상품명','상자 크기','상자 수','메모','보내는분','보내는분 전화','보내는분 주소'];
+const COLS_G=['번호','받는분','받는분 전화','받는분 주소','주문 상품','수량','금액','받을 날','메모','보내는분','보내는분 전화','보내는분 주소'];
+let COLS=COLS_F;
+function rows(L){const g=L.some(hasItems)||!isFarm();COLS=g?COLS_G:COLS_F;return L.map((o,i)=>g?[i+1,o.name,o.phone,o.addr,itemsText(o),qtyOf(o),amountOf(o)||'',o.due||'',o.memo,cfg.name,cfg.tel,cfg.addr]:[i+1,o.name,o.phone,o.addr,cfg.item,o.size,o.qty,o.memo,cfg.name,cfg.tel,cfg.addr])}
+function fname(ext){return (cfg.name||'주문')+'_발송명단_'+today()+'.'+ext}
+function makeXlsx(L){const RW=rows(L);const ws=XLSX.utils.aoa_to_sheet([COLS,...RW]);ws['!cols']=(COLS===COLS_G?[5,10,15,45,35,6,10,11,20,10,15,30]:[5,10,15,45,10,8,7,20,10,15,30]).map(w=>({wch:w}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'발송명단');return XLSX.write(wb,{bookType:'xlsx',type:'array'})}
+function makeCsv(L){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';const RW=rows(L);return '\ufeff'+[COLS,...RW].map(r=>r.map(q).join(',')).join('\r\n')}
 function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
 $('#btnXlsx').onclick=()=>{const L=outList();if(!L.length)return toast('보낼 주문이 없습니다');download(new Blob([makeXlsx(L)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),fname('xlsx'));toast('엑셀 파일을 저장했습니다 (다운로드 폴더)')};
 $('#btnShareFile').onclick=async()=>{const L=outList();if(!L.length)return toast('보낼 주문이 없습니다');
   const f=new File([makeCsv(L)],fname('csv'),{type:'text/csv'});
   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'발송 명단'})}catch(e){}}
   else{download(f,f.name);toast('이 폰은 파일 바로 보내기가 안 되어 파일로 저장했습니다')}};
-function textOf(L){return (cfg.name?cfg.name+' 발송 명단 ':'발송 명단 ')+today()+' ('+L.length+'건)\n\n'+L.map((o,i)=>(i+1)+'. '+o.name+' / '+o.phone+'\n   '+o.addr+'\n   '+cfg.item+' '+o.size+' '+o.qty+'상자'+(o.memo?' / '+o.memo:'')).join('\n\n')}
+function textOf(L){return (cfg.name?cfg.name+' 발송 명단 ':'발송 명단 ')+today()+' ('+L.length+'건)\n\n'+L.map((o,i)=>(i+1)+'. '+o.name+' / '+o.phone+'\n   '+o.addr+(orderLine(o)?'\n   '+orderLine(o):'')+(o.memo?' / '+o.memo:'')).join('\n\n')}
 $('#btnShareText').onclick=async()=>{const L=outList();if(!L.length)return toast('보낼 주문이 없습니다');const t=textOf(L);
   if(navigator.share){try{await navigator.share({text:t})}catch(e){}}else{await navigator.clipboard.writeText(t);toast('글을 복사했습니다. 카톡에 붙여넣으세요')}};
 $('#btnMemoOut').onclick=()=>{const L=outList();if(!L.length)return toast('보낼 주문이 없습니다');shareText(textOf(L),'발송 명단 '+today())};
@@ -403,18 +501,18 @@ $('#btnVcfOut').onclick=()=>{const L=outList();if(!L.length)return toast('저장
 $('#btnMarkSent').onclick=()=>{const L=outList();if(!L.length)return toast('표시할 주문이 없습니다');if(!confirm(L.length+'건을 「발송함」으로 표시할까요?'))return;L.forEach(o=>o.sent=true);save();renderOut();toast(L.length+'건을 발송함으로 표시했습니다')};
 
 /* ---------- 설정 ---------- */
-function renderSet(){setTimeout(checkCode,0);$('#cfName').value=cfg.name;$('#cfTel').value=cfg.tel;$('#cfAddr').value=cfg.addr;$('#cfItem').value=cfg.item;$('#cfSizes').value=cfg.sizes;$('#cfKey').value=cfg.key;$('#cfCode').value=cfg.code||'';$('#cfModel').value=cfg.model;ocrUI()}
-function ocrUI(){$$('[data-ocr]').forEach(c=>c.classList.toggle('on',c.dataset.ocr===cfg.ocr));$('#aiBox').classList.toggle('hide',cfg.ocr!=='ai');
+function renderSet(){setTimeout(checkCode,0);$('#cfName').value=cfg.name;$('#cfTel').value=cfg.tel;$('#cfAddr').value=cfg.addr;$('#cfItem').value=cfg.item;$('#cfProducts').value=cfg.products||'';$('#farmSet').classList.toggle('hide',!isFarm());$('#prodSet').classList.toggle('hide',!useItems());$('#cfSizes').value=cfg.sizes;$('#cfKey').value=cfg.key;$('#cfCode').value=cfg.code||'';$('#cfModel').value=cfg.model;ocrUI()}
+function ocrUI(){$$('[data-ocr]').forEach(c=>c.classList.toggle('on',c.dataset.ocr===cfg.ocr));
   $('#ocrHelp').textContent=cfg.ocr==='ai'?'손글씨와 우편물을 훨씬 정확하게 읽습니다. 찍은 사진은 읽는 데만 쓰이고 어디에도 저장되지 않습니다. 이용 코드가 필요합니다.':'사진이 폰 밖으로 나가지 않습니다. 인쇄한 글씨는 잘 읽지만 손글씨는 틀리는 곳이 많습니다.'}
 $$('[data-ocr]').forEach(c=>c.onclick=()=>{cfg.ocr=c.dataset.ocr;ocrUI()});
-$('#btnSaveCfg').onclick=()=>{cfg.name=$('#cfName').value.trim();cfg.tel=$('#cfTel').value.trim();cfg.addr=$('#cfAddr').value.trim();cfg.item=$('#cfItem').value.trim()||'감귤';cfg.sizes=$('#cfSizes').value.trim()||'5kg,10kg';const hadAI=!!(cfg.key||cfg.code);cfg.key=$('#cfKey').value.trim();cfg.code=$('#cfCode').value.trim().toUpperCase();$('#cfCode').value=cfg.code;if((cfg.key||cfg.code)&&!hadAI)cfg.ocr='ai';if(!cfg.key&&!cfg.code)cfg.ocr='local';cfg.model=$('#cfModel').value.trim()||'gemini-3.1-flash-lite';LS.set('gyul_cfg',cfg);ocrUI();toast(cfg.ocr==='ai'?'저장했습니다. 이제 사진은 구글 AI로 읽습니다':'설정을 저장했습니다');checkCode()}
+$('#btnSaveCfg').onclick=()=>{cfg.name=$('#cfName').value.trim();cfg.tel=$('#cfTel').value.trim();cfg.addr=$('#cfAddr').value.trim();cfg.item=$('#cfItem').value.trim()||'감귤';cfg.sizes=$('#cfSizes').value.trim()||'5kg,10kg';cfg.products=$('#cfProducts').value.trim();fillProdList();const hadAI=!!(cfg.key||cfg.code);cfg.key=$('#cfKey').value.trim();cfg.code=$('#cfCode').value.trim().toUpperCase();$('#cfCode').value=cfg.code;if((cfg.key||cfg.code)&&!hadAI)cfg.ocr='ai';if(!cfg.key&&!cfg.code)cfg.ocr='local';cfg.model=$('#cfModel').value.trim()||'gemini-3.1-flash-lite';LS.set('gyul_cfg',cfg);ocrUI();toast(cfg.ocr==='ai'?'저장했습니다. 이제 사진은 구글 AI로 읽습니다':'설정을 저장했습니다');checkCode()}
 async function checkCode(){const el=$('#codeInfo');if(!cfg.code){el.textContent='';return}el.textContent='이용 코드 확인 중...';try{const j=await relay({code:cfg.code,action:'check'});el.textContent=j.ok?('사용 가능 · 이번 달 남은 사진 '+j.remaining+'장 (한도 '+j.limit+'장)'):('확인 실패: '+j.error);el.style.color=j.ok?'#2e7d32':'#c62828'}catch(e){el.textContent='인터넷 연결을 확인해 주세요';el.style.color='#c62828'}};
-$('#btnBackup').onclick=()=>download(new Blob([JSON.stringify({v:1,orders,cfg:Object.assign({},cfg,{key:''})},null,1)],{type:'application/json'}),'귤주문장_백업_'+today()+'.json');
+$('#btnBackup').onclick=()=>download(new Blob([JSON.stringify({v:1,orders,cfg:Object.assign({},cfg,{key:''})},null,1)],{type:'application/json'}),'찍으면명단_백업_'+today()+'.json');
 $('#btnRestore').onclick=()=>$('#fRestore').click();
 $('#fRestore').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.orders))throw 0;if(!confirm('백업의 '+j.orders.length+'건으로 바꿀까요? 지금 기록은 사라집니다.'))return;orders=j.orders;if(j.cfg)cfg=Object.assign(cfg,j.cfg,{key:cfg.key});LS.set('gyul_cfg',cfg);save();renderSet();toast('불러왔습니다')}catch(x){alert('백업 파일이 아닙니다')}e.target.value=''};
 $('#btnWipe').onclick=()=>{if(confirm('주문 기록을 모두 지울까요? 되돌릴 수 없습니다.')&&confirm('정말 지울까요?')){orders=[];save();toast('모두 지웠습니다')}};
 
-refresh();setMode(cfg.mode||'order');
+if(cfg.biz)setBiz(cfg.biz);else{setBiz(cfg.mode==='contact'?'contact':'farm');showBizPick()}
 (function(){try{const u=new URL(location.href);const c=(u.searchParams.get('code')||'').trim().toUpperCase();
   if(/^MD-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(c)){cfg.code=c;if(!cfg.key)cfg.ocr='ai';LS.set('gyul_cfg',cfg);u.searchParams.delete('code');history.replaceState(null,'',u.pathname+(u.search||''));
     setTimeout(()=>alert('이용 코드가 자동으로 들어갔습니다.\n\n이제 크롬 오른쪽 위 점 세 개를 누르고 「홈 화면에 추가」를 눌러 앱으로 설치하세요.'),300)}}catch(e){}})();
